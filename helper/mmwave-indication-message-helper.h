@@ -29,7 +29,7 @@ class MmWaveIndicationMessageHelper : public IndicationMessageHelper
 
     void FillCuUpValues(std::string plmId);
 
-    void AddCuUpUePmItem(std::string ueImsiComplete, long txPdcpPduBytesNrRlc, long txPdcpPduNrRlc, double pdcpThroughput);
+    void AddCuUpUePmItem(std::string ueImsiComplete, long txPdcpPduBytesNrRlc, long txPdcpPduNrRlc, double pdcpThroughput, double rlcLatency);
 
     void FillCuCpValues(uint16_t numActiveUes);
 

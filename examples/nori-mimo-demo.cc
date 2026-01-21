@@ -101,7 +101,7 @@ main(int argc, char* argv[])
     std::string beamformingMethod = "ns3::DirectPathBeamforming";
     std::string losCondition = "Default";
 
-    std::string ipE2TermRic = "10.244.0.246"; // The IP address of the E2 termination
+    std::string ipE2TermRic = "10.244.0.18"; // The IP address of the E2 termination
 
     // Where the example stores the output files.
     std::string simTag = "default";

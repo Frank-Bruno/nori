@@ -402,7 +402,8 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
         }
         double txBytes = (actualTotalTxBytes - m_cellTxBytes[imsi]); // in kbit, not byte
 
-        NS_LOG_DEBUG("Actual value of TX bytes: " << (actualTotalTxBytes) << " - " << m_cellTxBytes[imsi]
+        NS_LOG_DEBUG("Actual value of TX bytes: " << (actualTotalTxBytes) << " - "
+                                                  << m_cellTxBytes[imsi]
                                                   << ", Result = " << txBytes);
         // Save the current value to validate the tx bits in this frame window
         m_cellTxBytes[imsi] += txBytes;
@@ -447,9 +448,9 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
         double pdcpLatency = m_e2PdcpStatsCalculator->GetDlDelay(imsi, 4) / 1e5; // unit: x 0.1 ms
         perUserAverageLatencySum += pdcpLatency;
 
-        double pdcpThroughput = txBytes / m_e2Periodicity;                    // unit kbps
-        std::cout << "imsi: " << imsi <<" -> " << pdcpThroughput << " kbps" << std::endl;
-        
+        double pdcpThroughput = txBytes / m_e2Periodicity; // unit kbps
+        std::cout << "imsi: " << imsi << " -> " << pdcpThroughput << " kbps" << std::endl;
+
         [[maybe_unused]] double pdcpThroughputRx = rxBytes / m_e2Periodicity; // unit kbps
 
         if (m_drbThrDlPdcpBasedComputationUeid.find(imsi) !=
@@ -464,6 +465,7 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
 
         // compute bitrate based on RLC statistics, decoupled from pdcp throughput
         double rlcLatency = m_e2RlcStatsCalculator->GetDlDelay(imsi, 4) / 1e9; // unit: s
+        std::cout << "imsi: " << imsi << " -> " << rlcLatency << " ms" << std::endl;
         double pduStats =
             m_e2RlcStatsCalculator->GetDlPduSizeStats(imsi, 4)[0] * 8.0 / 1e3; // unit kbit
 
@@ -484,7 +486,8 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
             indicationMessageHelper->AddCuUpUePmItem(ueImsiComplete,
                                                      txPdcpPduBytesNrRlc,
                                                      txPdcpPduNrRlc,
-                                                     pdcpThroughput);
+                                                     pdcpThroughput,
+                                                     rlcLatency);
         }
 
         uePmString.insert(std::make_pair(imsi,
@@ -1012,7 +1015,7 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
                                                  macQpskCellSpecific,
                                                  mac16QamCellSpecific,
                                                  mac64QamCellSpecific,
-                                                 prbUtilizationDl,
+                                                 dlPrbUsage,
                                                  macRetxCellSpecific,
                                                  macVolumeCellSpecific,
                                                  macMac04CellSpecific,

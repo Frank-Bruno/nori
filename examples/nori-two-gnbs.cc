@@ -40,9 +40,7 @@ $ ./ns3 run "cttc-nr-simple-qos-sched --PrintHelp"
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("NoriSimpleRlScheduler");
-
-// const std::string E2_AGENT_LOG_COMPONENT = "E2Interface";
+NS_LOG_COMPONENT_DEFINE("NoriTwoGNBs");
 
 int
 main(int argc, char* argv[])
@@ -56,9 +54,9 @@ main(int argc, char* argv[])
     GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
     bool enableRanSlicing = true; // In case false, utilizes the default RR without slicing
-    uint16_t gNbNum = 1;
-    uint16_t ueNumPergNb = 4;
-    std::string ipE2TermRic = "10.244.0.18";
+    uint16_t gNbNum = 2;
+    uint16_t ueNumPergNb = 2;
+    std::string ipE2TermRic = "10.244.0.93";
     uint16_t slice1Ues = 2; // Other UEs are assigned to slice 2
     bool logging = false;
 
@@ -124,7 +122,6 @@ main(int argc, char* argv[])
             (LogLevel)(LOG_PREFIX_FUNC | LOG_PREFIX_TIME | LOG_PREFIX_NODE | LOG_LEVEL_INFO);
         LogComponentEnable("NrMacSchedulerNs3", logLevel1);
         LogComponentEnable("NrMacSchedulerTdma", logLevel1);
-        LogComponentEnable("NoriE2Report", logLevel1);
     }
 
     Config::SetDefault("ns3::NrRlcUm::MaxTxBufferSize", UintegerValue(999999999));
@@ -221,8 +218,7 @@ main(int argc, char* argv[])
     /**
      * @todo remove when finish tests
      */
-    [[maybe_unused]] std::string schedTest =
-        (enableRanSlicing) ? "ns3::NrRLMacSchedulerOfdma" : "ns3::NrMacSchedulerOfdmaRR";
+    [[maybe_unused]] std::string schedTest = (enableRanSlicing) ? "ns3::NrRLMacSchedulerOfdma" : "ns3::NrMacSchedulerOfdmaRR";
     nrHelper->SetSchedulerTypeId(TypeId::LookupByName(schedTest));
 
     // Error Model: gNB and UE with same spectrum error model.

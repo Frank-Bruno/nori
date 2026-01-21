@@ -230,29 +230,31 @@ NrRLMacSchedulerOfdma::AssignDLRBG(uint32_t symAvail, const ActiveUeMap& activeD
     return symPerBeam;
 }
 
-void NrRLMacSchedulerOfdma::SetSlicingParameters(const std::vector<RicControlMessage::SlicePRBQuota>& quotas)
+void
+NrRLMacSchedulerOfdma::SetSlicingParameters(
+    const std::vector<RicControlMessage::SlicePRBQuota>& quotas)
 {
-
     size_t maxSliceId = 0;
-    for (auto const& q : quotas) {
+    for (const auto& q : quotas)
+    {
         maxSliceId = std::max(maxSliceId, static_cast<size_t>(q.sliceId));
     }
-    m_dedicatedRbPercSlices.resize(maxSliceId+1);
-    m_minRbPercSlices      .resize(maxSliceId+1);
-    m_maxRbPercSlices      .resize(maxSliceId+1);
+    m_dedicatedRbPercSlices.resize(maxSliceId + 1);
+    m_minRbPercSlices.resize(maxSliceId + 1);
+    m_maxRbPercSlices.resize(maxSliceId + 1);
 
-    for (auto const& q : quotas) {
-        NS_LOG_INFO("Setting slicing parameters for slice " << q.sliceId
-                    << ": " << q.dedicatePRBRatio << "% dedicated, "
-                    << q.minPRBRatio      << "% min, "
-                    << q.maxPRBRatio      << "% max");
+    for (const auto& q : quotas)
+    {
+        std::cout << "Setting slicing parameters for slice " << q.sliceId << ": "
+                  << q.dedicatePRBRatio << "% dedicated, " << q.minPRBRatio << "% min, "
+                  << q.maxPRBRatio << "% max" << std::endl;
         auto dedicated = static_cast<uint32_t>(q.dedicatePRBRatio);
-        auto minPRB     = static_cast<uint32_t>(q.minPRBRatio);
-        auto maxPRB     = static_cast<uint32_t>(q.maxPRBRatio);
+        auto minPRB = static_cast<uint32_t>(q.minPRBRatio);
+        auto maxPRB = static_cast<uint32_t>(q.maxPRBRatio);
 
         m_dedicatedRbPercSlices[q.sliceId] = dedicated;
-        m_minRbPercSlices      [q.sliceId] = minPRB;
-        m_maxRbPercSlices      [q.sliceId] = maxPRB;
+        m_minRbPercSlices[q.sliceId] = minPRB;
+        m_maxRbPercSlices[q.sliceId] = maxPRB;
     }
 }
 

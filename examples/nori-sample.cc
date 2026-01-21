@@ -43,7 +43,7 @@ using namespace ns3;
  */
 NS_LOG_COMPONENT_DEFINE("Cttc3gppChannelSimpleRan");
 
-static bool g_rxPdcpCallbackCalled = false;
+static bool g_rxPdcpCallbackCalled = false; 
 static bool g_rxRxRlcPDUCallbackCalled = false;
 
 static void
@@ -137,7 +137,7 @@ main(int argc, char* argv[])
     uint16_t gNbNum = 1;
     uint16_t ueNumPergNb = 1;
     bool enableUl = false;
-    std::string ipE2TermRic = "10.244.0.246";
+    std::string ipE2TermRic = "10.244.0.18";
     RngSeedManager::SetSeed(1);
     Time sendPacketTime = Seconds(1);
 

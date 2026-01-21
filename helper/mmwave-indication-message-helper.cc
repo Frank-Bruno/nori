@@ -29,7 +29,8 @@ void
 MmWaveIndicationMessageHelper::AddCuUpUePmItem(std::string ueImsiComplete,
                                                long txPdcpPduBytesNrRlc,
                                                long txPdcpPduNrRlc,
-                                               double pdcpThroughput)
+                                               double pdcpThroughput,
+                                                double rlcLatency)
 {
     Ptr<MeasurementItemList> ueVal = Create<MeasurementItemList>(ueImsiComplete);
     if (!m_reducedPmValues)
@@ -41,6 +42,8 @@ MmWaveIndicationMessageHelper::AddCuUpUePmItem(std::string ueImsiComplete,
         ueVal->AddItem<long>("DRB.PdcpPduNbrDl.Qos.UEID", txPdcpPduNrRlc);
 
         ueVal->AddItem<float>("DRB.PdcpSduBitRateDl.UEID", pdcpThroughput);
+
+        ueVal->AddItem<float>("DRB.AvgRlcLatencyDl.UEID", rlcLatency);
     }
 
     m_msgValues.m_ueIndications.insert(ueVal);
