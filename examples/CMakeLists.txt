@@ -4,6 +4,7 @@ set(base_examples
     nori-mimo-demo
     nori-simple-rl-sched
     nori-two-gnbs
+    nori-embb-urllc-scenario
 )
 
 foreach(
