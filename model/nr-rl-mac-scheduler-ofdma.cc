@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <random>
+#include <sstream>
 
 namespace ns3
 {
@@ -75,6 +76,18 @@ NrRLMacSchedulerOfdma::SetSliceUeMapping(uint32_t numSlices,
     m_dedicatedRbPercSlices.resize(m_numberSlices, 0);
     m_minRbPercSlices.resize(m_numberSlices, 0);
     m_maxRbPercSlices.resize(m_numberSlices, 100);
+
+    // Debug: logar mapeamento slice -> RNTIs
+    for (uint32_t sliceIdx = 0; sliceIdx < m_numberSlices; ++sliceIdx)
+    {
+        std::ostringstream oss;
+        oss << "Slice " << sliceIdx << " UE RNTIs:";
+        for (uint32_t rnti : m_sliceUeRnti[sliceIdx])
+        {
+            oss << " " << rnti;
+        }
+        NS_LOG_INFO(oss.str());
+    }
 }
 
 NrMacSchedulerNs3::BeamSymbolMap
@@ -130,6 +143,19 @@ NrRLMacSchedulerOfdma::AssignDLRBG(uint32_t symAvail, const ActiveUeMap& activeD
                     }
                 }
             }
+        }
+
+        // Debug: logar quais UEs ativos foram associados a cada slice neste beam
+        for (uint32_t sliceIdx = 0; sliceIdx < m_numberSlices; ++sliceIdx)
+        {
+            std::ostringstream oss;
+            oss << "Beam " << GetBeamId(el) << " slice " << sliceIdx << " active UEs:";
+            for (const auto& ue : ranSliceUeVector[sliceIdx])
+            {
+                GetFirst GetUe;
+                oss << " RNTI=" << GetUe(ue)->m_rnti << " buf=" << ue.second;
+            }
+            NS_LOG_INFO(oss.str());
         }
         std::vector<std::vector<uint32_t>> rbsPercSlices = {m_dedicatedRbPercSlices,
                                                             minRbPerSlicesOnly,
