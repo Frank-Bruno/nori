@@ -35,15 +35,15 @@ int main(int argc, char* argv[])
     uint16_t gNbNum = 1;
     uint16_t ueNum = 2;
     double simTime = 10.0;
-    double interSiteDistance = 10.0;
-    double centralFrequency = 28e9;
+    double interSiteDistance = 20.0;
+    double centralFrequency = 3.6e9;
     double bandwidth = 100e6;
 
     uint16_t numerology = 0;
     double txPower = 0.0;
     double ueTxPower = 0.0;
 
-    std::string ipE2TermRic = "10.244.0.246";
+    std::string ipE2TermRic = "10.244.0.188";
 
     std::vector<int> uesPerSlice;
     std::vector<uint8_t> sstPerSlice;
@@ -243,8 +243,8 @@ int main(int argc, char* argv[])
     nrHelper->SetUeAntennaAttribute("NumColumns", UintegerValue(1));
     nrHelper->SetUeAntennaAttribute("AntennaElement", PointerValue(CreateObject<IsotropicAntennaModel>()));
 
-    nrHelper->SetGnbAntennaAttribute("NumRows", UintegerValue(8));
-    nrHelper->SetGnbAntennaAttribute("NumColumns", UintegerValue(8));
+    nrHelper->SetGnbAntennaAttribute("NumRows", UintegerValue(1));
+    nrHelper->SetGnbAntennaAttribute("NumColumns", UintegerValue(1));
     nrHelper->SetGnbAntennaAttribute("AntennaElement", PointerValue(CreateObject<IsotropicAntennaModel>()));
 
     BandwidthPartInfoPtrVector allBwps;
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
     bandConf.m_numBwp = 1;
     band = ccBwpCreator.CreateOperationBandContiguousCc(bandConf);
     Ptr<NrChannelHelper> channelHelper = CreateObject<NrChannelHelper>();
-    channelHelper->ConfigureFactories("UMi", "Default", "ThreeGpp");
+    channelHelper->ConfigureFactories("UMa", "Default", "ThreeGpp");
     channelHelper->SetPathlossAttribute("ShadowingEnabled", BooleanValue(false));
     channelHelper->SetChannelConditionModelAttribute("UpdatePeriod", TimeValue(MilliSeconds(0)));
     channelHelper->AssignChannelsToBands({band});

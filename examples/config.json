@@ -7,14 +7,14 @@
   },
   "simulation": {
     "_comment": "Global simulation parameters.",
-    "duration": 10
+    "duration": 60
   },
   "NR": {
     "_comment": "Physical parameters of the NR cell.",
-    "numerology": 2,
-    "bandwidthMHz": 20,
+    "numerology": 1,
+    "bandwidthMHz": 100,
     "centralFrequency": 3.5e9,
-    "txPower": 30,
+    "txPower": 50,
     "ueTxPower": 23
   },
   "traffic": {
@@ -24,21 +24,35 @@
       "packetSize": 1400,
       "bitrateMbps": 20,
       "onTimeMean": 1.0,
+      "offTimeMean": 0.0
+    },
+    "A": {
+      "_comment": "eMBB traffic: high throughput, less strict delay constraints.",
+      "packetSize": 1400,
+      "bitrateMbps": 15,
+      "onTimeMean": 1.0,
+      "offTimeMean": 0.01
+    },
+    "B": {
+      "_comment": "eMBB traffic: high throughput, less strict delay constraints.",
+      "packetSize": 1400,
+      "bitrateMbps": 10,
+      "onTimeMean": 1.0,
       "offTimeMean": 0.01
     },
     "URLLC": {
       "_comment": "URLLC traffic: lower throughput, higher reliability/low latency.",
-      "packetSize": 200,
-      "bitrateMbps": 4,
-      "onTimeMean": 0.5,
-      "offTimeMean": 0.02
+      "packetSize": 1400,
+      "bitrateMbps": 5,
+      "onTimeMean": 1.0,
+      "offTimeMean": 0.01
     }
   },
   "slices": {
     "_comment": "RAN slicing configuration: number of UEs per slice and associated traffic type.",
-    "numSlices": 2,
-    "UesPerSlice": [2, 2],
-    "trafficTypes": ["eMBB", "URLLC"],
-    "SstPerSlice": [1, 2]
+    "numSlices": 4,
+    "UesPerSlice": [2, 2, 2, 2],
+    "trafficTypes": ["eMBB", "A", "B", "URLLC"],
+    "SstPerSlice": [1, 2, 3, 4]
   }
 }
