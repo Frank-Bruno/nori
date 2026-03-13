@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
     std::vector<int> ueSliceId(ueNum, -1);
     std::vector<std::string> ueSliceTrafficType(ueNum, "");
 
-    GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
+    // GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
 
     // Enable/disable RAN slicing with RL scheduler
     bool enableRanSlicing = true;
@@ -419,29 +419,28 @@ int main(int argc, char* argv[])
             
             ApplicationContainer sourceApps = trafficApp.Install(remoteHostContainer.Get(0));
             
-            sourceApps.Start(Seconds(2.0));
+            sourceApps.Start(Seconds(0.1));
             sourceApps.Stop(Seconds(simTime));
 
             NS_LOG_INFO("UE[" << nodeIdx << "] app installed and scheduled: start=2s, stop=" << simTime << "s");
         }
     }
 
-    // Simple UDP echo connectivity test
-    NS_LOG_INFO("Installing UDP Echo test...");
-    uint16_t echoPort = 9;
-    UdpEchoServerHelper echoServer(echoPort);
-    ApplicationContainer serverApps = echoServer.Install(remoteHostContainer.Get(0));
-    serverApps.Start(Seconds(0.0));
-    serverApps.Stop(Seconds(simTime));
+    // // Simple UDP echo connectivity test
+    // NS_LOG_INFO("Installing UDP Echo test...");
+    // uint16_t echoPort = 9;
+    // UdpEchoServerHelper echoServer(echoPort);
+    // ApplicationContainer serverApps = echoServer.Install(remoteHostContainer.Get(0));
+    // serverApps.Start(Seconds(0.0));
+    // serverApps.Stop(Seconds(simTime));
     
-    UdpEchoClientHelper echoClient(remoteHostAddr, echoPort);
-    echoClient.SetAttribute("MaxPackets", UintegerValue(1));
-    echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
-    echoClient.SetAttribute("PacketSize", UintegerValue(1024));
-    ApplicationContainer clientApps = echoClient.Install(ueNodes.Get(0));
-    clientApps.Start(Seconds(6.1));
-    clientApps.Stop(Seconds(7.0));
-    NS_LOG_INFO("Echo test: UE[0] will send 1 packet to remoteHost:9 at t=6.1s");
+    // UdpEchoClientHelper echoClient(remoteHostAddr, echoPort);
+    // echoClient.SetAttribute("MaxPackets", UintegerValue(1));
+    // echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
+    // echoClient.SetAttribute("PacketSize", UintegerValue(1024));
+    // ApplicationContainer clientApps = echoClient.Install(ueNodes.Get(0));
+    // clientApps.Start(Seconds(0.5));
+    // clientApps.Stop(Seconds(simTime));
 
     // FlowMonitor statistics
     FlowMonitorHelper flowmonHelper;
@@ -517,7 +516,7 @@ int main(int argc, char* argv[])
             }
 
             // Identify echo-test flow (port 9 at either end)
-            bool isEchoFlow = (t.sourcePort == echoPort || t.destinationPort == echoPort);
+            // bool isEchoFlow = (t.sourcePort == echoPort || t.destinationPort == echoPort);
 
             // Find the UE IP in this flow
             Ipv4Address ueAddr;
@@ -554,15 +553,15 @@ int main(int argc, char* argv[])
                 trafficType = ueSliceTrafficType[ueIndex];
             }
 
-            if (isEchoFlow)
-            {
-                // Connectivity test flow: exclude from eMBB/URLLC statistics
-                std::cout << "Flow " << flowId << " (ECHO TEST): UE " << ueAddr
-                          << " | T-put: " << std::fixed << std::setprecision(2) << throughput << " Mbps"
-                          << " | Delay: " << delay << " ms"
-                          << " | Loss: " << lossRatio << " %" << std::endl;
-                continue;
-            }
+            // if (isEchoFlow)
+            // {
+            //     // Connectivity test flow: exclude from eMBB/URLLC statistics
+            //     std::cout << "Flow " << flowId << " (ECHO TEST): UE " << ueAddr
+            //               << " | T-put: " << std::fixed << std::setprecision(2) << throughput << " Mbps"
+            //               << " | Delay: " << delay << " ms"
+            //               << " | Loss: " << lossRatio << " %" << std::endl;
+            //     continue;
+            // }
 
             // Update aggregate statistics according to slice traffic type
             if (trafficType == "eMBB" || trafficType == "EMBB" || trafficType == "embb")

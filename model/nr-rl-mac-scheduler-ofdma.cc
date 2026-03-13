@@ -143,6 +143,17 @@ NrRLMacSchedulerOfdma::AssignDLRBG(uint32_t symAvail, const ActiveUeMap& activeD
 
         // RAN slicing addition
         // uint32_t m_numberSlices = 2;
+        // TODO Remove
+        // if (m_numberSlices == 2)
+        // {
+        //     dedicatedRbPercSlices[0] = 90;
+        //     minRbPercSlices[0] = 90;
+        //     maxRbPercSlices[0] = 90;
+
+        //     dedicatedRbPercSlices[1] = 10;
+        //     minRbPercSlices[1] = 10;
+        //     maxRbPercSlices[1] = 10;
+        // }
 
         for (uint16_t sliceIdx = 0; sliceIdx < m_numberSlices; sliceIdx++)
         {
@@ -195,9 +206,17 @@ NrRLMacSchedulerOfdma::AssignDLRBG(uint32_t symAvail, const ActiveUeMap& activeD
         //          << ", Global minRbPercSlices sum: " << std::accumulate(m_minRbPercSlices.begin(), m_minRbPercSlices.end(), 0)
         //          << ", Global maxRbPercSlices sum: " << std::accumulate(m_maxRbPercSlices.begin(), m_maxRbPercSlices.end(), 0));
 
-        // NS_LOG_UNCOND("dedicatedRbPercSlices sum: " << std::accumulate(dedicatedRbPercSlices.begin(), dedicatedRbPercSlices.end(), 0) 
-                //   << ", minRbPercSlices sum: " << std::accumulate(minRbPercSlices.begin(), minRbPercSlices.end(), 0)
-                //   << ", maxRbPercSlices sum: " << std::accumulate(maxRbPercSlices.begin(), maxRbPercSlices.end(), 0));
+        //NS_LOG_UNCOND("dedicatedRbPercSlices sum: " << std::accumulate(dedicatedRbPercSlices.begin(), dedicatedRbPercSlices.end(), 0) 
+        //           << ", minRbPercSlices sum: " << std::accumulate(minRbPercSlices.begin(), minRbPercSlices.end(), 0)
+        //           << ", maxRbPercSlices sum: " << std::accumulate(maxRbPercSlices.begin(), maxRbPercSlices.end(), 0));
+
+        //TODO Remove
+        // for (uint16_t i = 0; i < m_numberSlices; i++)
+        // {
+        //     NS_LOG_UNCOND("Slice " << i << ": dedicated=" << dedicatedRbPercSlices[i]
+        //                            << ", min=" << minRbPercSlices[i]
+        //                            << ", max=" << maxRbPercSlices[i]);
+        // }
 
         NS_ASSERT(std::accumulate(dedicatedRbPercSlices.begin(), dedicatedRbPercSlices.end(), 0) <=
                   100);
