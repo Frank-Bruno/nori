@@ -25,6 +25,142 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("nori-embb-urllc-scenario");
 
+// Função auxiliar para imprimir estatísticas periódicas por UE
+void PrintPeriodicStats(Ptr<FlowMonitor> monitor,
+                        FlowMonitorHelper* flowmonHelper,
+                        const std::map<Ipv4Address, uint32_t>& ueIpToIndex,
+                        Ipv4Address ueNetworkAddress,
+                        Ipv4Mask ueNetworkMask,
+                        uint16_t echoPort,
+                        double simTime,
+                        double interval)
+{
+    double now = Simulator::Now().GetSeconds();
+    if (now > simTime)
+    {
+        return;
+    }
+
+    monitor->CheckForLostPackets();
+    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier>(flowmonHelper->GetClassifier());
+    std::map<FlowId, FlowMonitor::FlowStats> statsMap = monitor->GetFlowStats();
+
+    if (statsMap.empty())
+    {
+        std::cout << "[t=" << now << "s] Nenhum fluxo ainda registrado pelo FlowMonitor." << std::endl;
+    }
+
+    // Descobrir quantidade de UEs a partir do mapa IP -> índice
+    uint32_t maxIndex = 0;
+    for (const auto& it : ueIpToIndex)
+    {
+        if (it.second > maxIndex)
+        {
+            maxIndex = it.second;
+        }
+    }
+    uint32_t ueCount = maxIndex + 1;
+
+    std::vector<uint64_t> ueTxPackets(ueCount, 0);
+    std::vector<uint64_t> ueRxPackets(ueCount, 0);
+    std::vector<uint64_t> ueRxBytes(ueCount, 0);
+    std::vector<double> ueFirstTx(ueCount, 0.0);
+    std::vector<double> ueLastRx(ueCount, 0.0);
+    std::vector<double> ueDelaySum(ueCount, 0.0);
+    std::vector<bool> ueHasFirstTx(ueCount, false);
+
+    for (const auto& it : statsMap)
+    {
+        FlowId flowId = it.first;
+        const FlowMonitor::FlowStats& stats = it.second;
+        Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(flowId);
+
+        bool ueAsSource = ueNetworkMask.IsMatch(t.sourceAddress, ueNetworkAddress);
+        bool ueAsDest = ueNetworkMask.IsMatch(t.destinationAddress, ueNetworkAddress);
+
+        if (!(ueAsSource || ueAsDest))
+        {
+            continue;
+        }
+
+        // Ignorar fluxo de teste de eco
+        if (t.sourcePort == echoPort || t.destinationPort == echoPort)
+        {
+            continue;
+        }
+
+        Ipv4Address ueAddr = ueAsSource ? t.sourceAddress : t.destinationAddress;
+        auto itIdx = ueIpToIndex.find(ueAddr);
+        if (itIdx == ueIpToIndex.end())
+        {
+            continue;
+        }
+        uint32_t idx = itIdx->second;
+        if (idx >= ueCount)
+        {
+            continue;
+        }
+
+        ueTxPackets[idx] += stats.txPackets;
+        ueRxPackets[idx] += stats.rxPackets;
+        ueRxBytes[idx] += stats.rxBytes;
+        ueDelaySum[idx] += stats.delaySum.GetSeconds();
+
+        double firstTx = stats.timeFirstTxPacket.GetSeconds();
+        double lastRx = stats.timeLastRxPacket.GetSeconds();
+
+        if (!ueHasFirstTx[idx] || firstTx < ueFirstTx[idx])
+        {
+            ueFirstTx[idx] = firstTx;
+            ueHasFirstTx[idx] = true;
+        }
+        if (stats.rxPackets > 0 && lastRx > ueLastRx[idx])
+        {
+            ueLastRx[idx] = lastRx;
+        }
+    }
+
+    std::cout << "\n[t=" << now << "s] Estatísticas por UE:" << std::endl;
+    for (uint32_t i = 0; i < ueCount; ++i)
+    {
+        double throughput = 0.0;
+        double delay = 0.0;
+        double lossRatio = 0.0;
+
+        if (ueTxPackets[i] > 0)
+        {
+            if (ueRxPackets[i] > 0 && ueHasFirstTx[i])
+            {
+                double duration = ueLastRx[i] - ueFirstTx[i];
+                if (duration <= 0.0)
+                {
+                    duration = 1e-9;
+                }
+                throughput = (ueRxBytes[i] * 8.0) / duration / 1e6; // Mbps
+                delay = (ueDelaySum[i] / ueRxPackets[i]) * 1e3;      // ms
+            }
+            lossRatio = (double)(ueTxPackets[i] - ueRxPackets[i]) * 100.0 / ueTxPackets[i];
+        }
+
+        std::cout << "  UE[" << i << "]: T-put=" << std::fixed << std::setprecision(2) << throughput
+                  << " Mbps, Delay=" << delay << " ms, Loss=" << lossRatio << " %" << std::endl;
+    }
+
+    if (now + interval <= simTime)
+    {
+        Simulator::Schedule(Seconds(interval),
+                            &PrintPeriodicStats,
+                            monitor,
+                            flowmonHelper,
+                            ueIpToIndex,
+                            ueNetworkAddress,
+                            ueNetworkMask,
+                            echoPort,
+                            simTime,
+                            interval);
+    }
+}
+
 int main(int argc, char* argv[])
 {   
     LogComponentEnable("nori-embb-urllc-scenario", LOG_LEVEL_INFO);
@@ -58,6 +194,7 @@ int main(int argc, char* argv[])
     };
     std::map<std::string, TrafficProfile> trafficProfiles;
 
+    // Caminho correto do arquivo de configuração (ajuste conforme a sua árvore de diretórios)
     std::ifstream configFile("/home/openran-br/ns-3-dev/contrib/nori/examples/config.json");
     if (configFile.is_open()) {
         nlohmann::json configJson;
@@ -90,26 +227,34 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Ler parâmetros de tráfego para cada tipo
-        if (configJson["traffic"].contains("eMBB")) {
-            auto embbConfig = configJson["traffic"]["eMBB"];
-            TrafficProfile embbProfile;
-            embbProfile.dataRate = embbConfig.value("bitrateMbps", 0.0);
-            embbProfile.packetSize = embbConfig.value("packetSize", static_cast<uint16_t>(0));
-            embbProfile.onTime = embbConfig.value("onTimeMean", 1.0);
-            embbProfile.offTime = embbConfig.value("offTimeMean", 0.01);
-            trafficProfiles["eMBB"] = embbProfile;
-        }
+            // Ler parâmetros de tráfego para cada tipo (aceita qualquer chave em "traffic")
+            if (configJson.contains("traffic") && configJson["traffic"].is_object())
+            {
+                for (auto& item : configJson["traffic"].items())
+                {
+                    const std::string trafficName = item.key();
+                    const auto& trafficConfig = item.value();
 
-        if (configJson["traffic"].contains("URLLC")) {
-            auto urllcConfig = configJson["traffic"]["URLLC"];
-            TrafficProfile urllcProfile;
-            urllcProfile.dataRate = urllcConfig.value("bitrateMbps", 0.0);
-            urllcProfile.packetSize = urllcConfig.value("packetSize", static_cast<uint16_t>(0));
-            urllcProfile.onTime = urllcConfig.value("onTimeMean", 0.5);
-            urllcProfile.offTime = urllcConfig.value("offTimeMean", 0.01);
-            trafficProfiles["URLLC"] = urllcProfile;
-        }
+                    if (!trafficConfig.is_object())
+                    {
+                        continue;
+                    }
+
+                    TrafficProfile profile;
+                    profile.dataRate = trafficConfig.value("bitrateMbps", 0.0);
+                    profile.packetSize = trafficConfig.value("packetSize", static_cast<uint16_t>(0));
+                    profile.onTime = trafficConfig.value("onTimeMean", 1.0);
+                    profile.offTime = trafficConfig.value("offTimeMean", 0.01);
+                    trafficProfiles[trafficName] = profile;
+
+                    NS_LOG_INFO("Traffic profile loaded: " << trafficName);
+                }
+            }
+
+            if (trafficProfiles.empty())
+            {
+                NS_FATAL_ERROR("[nori-embb-urllc-scenario] No traffic profiles found in config.json under 'traffic'");
+            }
 
         // Expected format in config.json: "SstPerSlice": [1, 2]
         if (!configJson["slices"].contains("SstPerSlice")) {
@@ -151,6 +296,7 @@ int main(int argc, char* argv[])
 
     // Enable/disable RAN slicing with RL scheduler
     bool enableRanSlicing = true;
+    bool enablenori = false;
     
     CommandLine cmd;
     cmd.AddValue("enableRanSlicing", "Enable RAN Slicing with RL scheduler", enableRanSlicing);
@@ -270,9 +416,9 @@ int main(int argc, char* argv[])
     NetDeviceContainer ueDevs = nrHelper->InstallUeDevice(ueNodes, allBwps);
 
     // Enable E2 support on gNBs
-    auto e2 = CreateObject<E2TermHelper>();
-    e2->SetAttribute("E2TermIp", StringValue(ipE2TermRic));
-    e2->InstallE2Term(gNbDevs);
+    // auto e2 = CreateObject<E2TermHelper>();
+    // e2->SetAttribute("E2TermIp", StringValue(ipE2TermRic));
+    // e2->InstallE2Term(gNbDevs);
 
     nrHelper->AttachToClosestGnb(ueDevs, gNbDevs);
 
@@ -303,6 +449,10 @@ int main(int argc, char* argv[])
 
     // Map IP -> UE index for FlowMonitor classification
     std::map<Ipv4Address, uint32_t> ueIpToIndex;
+
+    // Rede dos UEs usada para classificação (DL/UL) e estatísticas periódicas
+    Ipv4Address ueNetworkAddress("7.0.0.0");
+    Ipv4Mask ueNetworkMask("255.0.0.0");
 
     NS_LOG_INFO("*** EPC-assigned addresses ***");
     NS_LOG_INFO("remoteHost (server): " << remoteHostAddr);
@@ -373,10 +523,10 @@ int main(int argc, char* argv[])
     {
         int countUes = uesPerSlice[sliceId];
         
-        // Traffic type per slice from configuration (fallback to default types)
-        std::string trafficType = (sliceId < trafficTypes.size()) 
-            ? trafficTypes[sliceId] 
-            : ((sliceId == 0) ? "eMBB" : "URLLC");
+        // Traffic type per slice from configuration (fallback to first available profile)
+        std::string trafficType = (sliceId < trafficTypes.size())
+            ? trafficTypes[sliceId]
+            : trafficProfiles.begin()->first;
 
         NS_LOG_INFO("Slice " << sliceId << " configured with traffic type: " << trafficType);
 
@@ -387,11 +537,12 @@ int main(int argc, char* argv[])
             uint32_t nodeIdx = currentUeIndex++;
             uint16_t port = portBase + nodeIdx;
 
-            // Fallback to eMBB profile if traffic type is not configured
+            // Fallback to first available profile if traffic type is not configured
             std::string resolvedTrafficType = trafficType;
             if (trafficProfiles.find(resolvedTrafficType) == trafficProfiles.end()) {
-                NS_LOG_WARN("Traffic type '" << resolvedTrafficType << "' not configured. Falling back to eMBB.");
-                resolvedTrafficType = "eMBB";
+                NS_LOG_WARN("Traffic type '" << resolvedTrafficType << "' not configured. Falling back to "
+                            << trafficProfiles.begin()->first << ".");
+                resolvedTrafficType = trafficProfiles.begin()->first;
             }
 
             TrafficProfile profile = trafficProfiles[resolvedTrafficType];
@@ -446,6 +597,19 @@ int main(int argc, char* argv[])
     FlowMonitorHelper flowmonHelper;
     Ptr<FlowMonitor> monitor = flowmonHelper.InstallAll();
 
+    // Estatísticas periódicas por UE durante a simulação (por ex. a cada 1s)
+    double statsInterval = 0.1; // segundos
+    Simulator::Schedule(Seconds(statsInterval),
+                        &PrintPeriodicStats,
+                        monitor,
+                        &flowmonHelper,
+                        ueIpToIndex,
+                        ueNetworkAddress,
+                        ueNetworkMask,
+                        echoPort,
+                        simTime,
+                        statsInterval);
+
     // Run
     Simulator::Stop(Seconds(simTime));
     Simulator::Run();
@@ -459,9 +623,6 @@ int main(int argc, char* argv[])
     double totalThroughputUrllc = 0.0, totalDelayUrllc = 0.0;
     uint32_t urllcFlows = 0;
     uint32_t ignoredFlows = 0; // Infrastructure flows (GTP/backhaul)
-
-    Ipv4Address ueNetworkAddress("7.0.0.0");
-    Ipv4Mask ueNetworkMask("255.0.0.0");
 
     std::map<FlowId, FlowMonitor::FlowStats> statsMap = monitor->GetFlowStats();
     

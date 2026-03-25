@@ -7,7 +7,11 @@
   },
   "simulation": {
     "_comment": "Global simulation parameters.",
+<<<<<<< HEAD
     "duration": 1000
+=======
+    "duration": 5
+>>>>>>> upstream/feature/dynamic-slice-configuration
   },
   "NR": {
     "_comment": "Physical parameters of the NR cell.",
