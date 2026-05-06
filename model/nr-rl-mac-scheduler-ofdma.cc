@@ -413,4 +413,24 @@ NrRLMacSchedulerOfdma::SetSlicingParameters(
     }
 }
 
+uint32_t
+NrRLMacSchedulerOfdma::GetDedicatedRbPercentageForRnti(uint16_t rnti) const
+{
+    for (uint32_t sliceIdx = 0; sliceIdx < m_sliceUeRnti.size(); ++sliceIdx)
+    {
+        const auto& sliceUes = m_sliceUeRnti[sliceIdx];
+        if (std::find(sliceUes.begin(), sliceUes.end(), rnti) != sliceUes.end())
+        {
+            if (sliceIdx < m_dedicatedRbPercSlices.size())
+            {
+                return m_dedicatedRbPercSlices[sliceIdx];
+            }
+
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
 } // namespace ns3

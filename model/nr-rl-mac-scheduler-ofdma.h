@@ -53,6 +53,13 @@ class NrRLMacSchedulerOfdma : public NrMacSchedulerOfdmaRR
     void SetSlicingParameters(const std::vector<RicControlMessage::SlicePRBQuota>& quotas);
     
     void SetSliceUeMapping(uint32_t numSlices, const std::vector<std::vector<uint32_t>>& sliceUeRnti);
+
+    /**
+     * @brief Get the dedicated RB percentage assigned to the slice of a UE.
+     * @param rnti UE RNTI.
+     * @return Dedicated RB percentage for the matching slice, or 0 if unmapped.
+     */
+    uint32_t GetDedicatedRbPercentageForRnti(uint16_t rnti) const;
   
   protected:
     /**
