@@ -17,8 +17,17 @@
 #include "ns3/nr-gnb-rrc.h"
 #include "ns3/nr-mac-sched-sap.h"
 #include "ns3/nr-rl-mac-scheduler-ofdma.h"
+#define private public
 #include "ns3/nr-rlc-am.h"
+#undef private
 #include "ns3/nr-rlc.h"
+#define private public
+#include "ns3/nr-rlc-um.h"
+#undef private
+#define private public
+#include "ns3/nr-rlc-tm.h"
+#undef private
+#include "ns3/nr-radio-bearer-info.h"
 #include "ns3/nstime.h"
 #include "ns3/object-map.h"
 #include "ns3/object.h"
@@ -26,6 +35,8 @@
 #include "ns3/string.h"
 #include "ns3/type-id.h"
 #include "ns3/uinteger.h"
+
+#include <cstdio>
 
 #include <encode_e2apv1.hpp>
 
@@ -764,8 +775,11 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
     uint32_t macSinrBin7CellSpecific = 0;
 
     uint32_t rlcBufferOccupCellSpecific = 0;
+    uint32_t rlcBufferMaxCellSpecific = 0;
 
-    uint32_t macPrbsCellSpecific = 0;
+    double macPrbsCellSpecific = 0;
+    std::unordered_map<uint8_t, double> macPrbsBySlice;
+    std::unordered_map<uint8_t, double> slicePrbCapBySst;
 
     m_cellId = nrCellId;
 
@@ -811,7 +825,20 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
         double macNumberOfSymbols =
             m_e2DuCalculator->GetMacNumberOfSymbolsUeSpecific(rnti, m_cellId);
 
-        auto slotPeriod = DynamicCast<NrGnbNetDevice>(m_netDev)->GetPhy(0)->GetSlotPeriod();
+        auto gnbNetDev = DynamicCast<NrGnbNetDevice>(m_netDev);
+        auto rlScheduler = gnbNetDev ? DynamicCast<NrRLMacSchedulerOfdma>(gnbNetDev->GetScheduler(0))
+                                     : nullptr;
+        uint32_t sliceDedicatedRbPercent = 100;
+        if (rlScheduler)
+        {
+            uint32_t configuredQuota = rlScheduler->GetDedicatedRbPercentageForRnti(rnti);
+            if (configuredQuota != 0)
+            {
+                sliceDedicatedRbPercent = configuredQuota;
+            }
+        }
+
+        auto slotPeriod = gnbNetDev->GetPhy(0)->GetSlotPeriod();
 
         ObjectMapValue ccMapObject;
         DynamicCast<NrGnbNetDevice>(m_netDev)->GetAttribute("BandwidthPartMap", ccMapObject);
@@ -830,10 +857,20 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
         double macPrb = 0;
         if (denominatorPrb != 0)
         {
+            double sliceAvailablePrbs = 273.0 * static_cast<double>(sliceDedicatedRbPercent) / 100.0;
             macPrb = macNumberOfSymbols / denominatorPrb *
-                     139; // TODO fix this for different numerologies
+                     sliceAvailablePrbs; // TODO fix this for different numerologies
+
+            macPrbsBySlice[sst] += macPrb;
+            if (slicePrbCapBySst.find(sst) == slicePrbCapBySst.end())
+            {
+                slicePrbCapBySst[sst] = sliceAvailablePrbs;
+            }
+            else
+            {
+                slicePrbCapBySst[sst] = std::max(slicePrbCapBySst[sst], sliceAvailablePrbs);
+            }
         }
-        macPrbsCellSpecific += macPrb;
 
         uint32_t macMac04 = m_e2DuCalculator->GetMacMcs04UeSpecific(rnti, m_cellId);
         macMac04CellSpecific += macMac04;
@@ -879,24 +916,66 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
          */
         // get buffer occupancy info
         uint32_t rlcBufferOccup = 0;
+        uint32_t rlcBufferMax = 0;
+        bool printedRlcType = false;
         ObjectMapValue drbMap;
         ue->GetAttribute("DataRadioBearerMap", drbMap);
         for (auto dr = drbMap.Begin(); dr != drbMap.End(); dr++)
         {
-            PointerValue nrPtr;
             NS_ABORT_MSG_IF(dr->second == nullptr, "DRB is null");
-            auto dataRadio = dr->second;
-            dataRadio->GetAttribute("NrPdcp", nrPtr);
-            [[maybe_unused]] auto nrRlc = nrPtr.Get<NrRlc>();
-            Ptr<NrRlcAm> rlcAm = DynamicCast<NrRlcAm>(nrRlc);
-            if (rlcAm)
+            // dr->second is Ptr<NrDataRadioBearerInfo>
+            Ptr<NrDataRadioBearerInfo> bearerInfo = dr->second->GetObject<NrDataRadioBearerInfo>();
+            if (!bearerInfo)
             {
-                // rlcAm->TraceConnectWithoutContext("TxBufferState",
-                //     MakeCallback([](uint32_t size) {
-                //         NS_LOG_UNCOND("Buffer size (bytes): " << size);
-                //     }));bufferSta
+                std::fprintf(stderr, "[E2Interface] bearerInfo is null for UE IMSI=%llu RNTI=%u\n",
+                             static_cast<unsigned long long>(imsi), static_cast<unsigned>(rnti));
+            }
+            else if (!bearerInfo->m_rlc)
+            {
+                std::fprintf(stderr,
+                             "[E2Interface] bearerInfo->m_rlc is null for UE IMSI=%llu RNTI=%u\n",
+                             static_cast<unsigned long long>(imsi), static_cast<unsigned>(rnti));
+            }
+            else
+            {
+                Ptr<NrRlc> nrRlc = bearerInfo->m_rlc;
+                const char* typeName = nrRlc->GetInstanceTypeId().GetName().c_str();
+                Ptr<NrRlcAm> rlcAm = DynamicCast<NrRlcAm>(nrRlc);
+                Ptr<NrRlcUm> rlcUm = DynamicCast<NrRlcUm>(nrRlc);
+                Ptr<NrRlcTm> rlcTm = DynamicCast<NrRlcTm>(nrRlc);
+                if (!printedRlcType)
+                {
+                    std::fprintf(stdout,
+                                 "[E2Interface] found RLC object type=%s for UE IMSI=%llu RNTI=%u; isAm=%d isUm=%d isTm=%d\n",
+                                 typeName,
+                                 static_cast<unsigned long long>(imsi),
+                                 static_cast<unsigned>(rnti),
+                                 (rlcAm != nullptr),
+                                 (rlcUm != nullptr),
+                                 (rlcTm != nullptr));
+                    printedRlcType = true;
+                }
+                if (rlcAm)
+                {
+                    // AM: use the NR internal AM transmit-on buffer size
+                    rlcBufferOccup += rlcAm->m_txonBufferSize;
+                    rlcBufferMax += rlcAm->m_maxTxBufferSize;
+                }
+                else if (rlcUm)
+                {
+                    // UM: use the NR internal UM transmit buffer size
+                    rlcBufferOccup += rlcUm->m_txBufferSize;
+                    rlcBufferMax += rlcUm->m_maxTxBufferSize;
+                }
+                else if (rlcTm)
+                {
+                    // TM: use the NR internal TM transmit buffer size
+                    rlcBufferOccup += rlcTm->m_txBufferSize;
+                    rlcBufferMax += rlcTm->m_maxTxBufferSize;
+                }
             }
         }
+        
 
         /**
          *
@@ -908,6 +987,16 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
         }
          */
         rlcBufferOccupCellSpecific += rlcBufferOccup;
+        rlcBufferMaxCellSpecific += rlcBufferMax;
+        // Print rlcBufferOccup de forma destacada para facilitar depuração/observação.
+        // Usa fprintf para saída direta no stdout.
+        std::fprintf(stdout,
+             "=== RLC BUFFER OCCUPANCY === Cell=%u IMSI=%llu RNTI=%u RLC_BUFFER_OCC=%u bytes RLC_BUFFER_MAX=%u bytes ===\n",
+                 static_cast<unsigned>(m_cellId),
+                 static_cast<unsigned long long>(imsi),
+                 static_cast<unsigned>(rnti),
+             static_cast<unsigned>(rlcBufferOccup),
+             static_cast<unsigned>(rlcBufferMax));
 
         NS_LOG_DEBUG(Simulator::Now().GetSeconds()
                      << " " << m_cellId << " cell, connected UE with IMSI " << imsi << " rnti "
@@ -920,7 +1009,8 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
                      << " macSinrBin1 " << macSinrBin1 << " macSinrBin2 " << macSinrBin2
                      << " macSinrBin3 " << macSinrBin3 << " macSinrBin4 " << macSinrBin4
                      << " macSinrBin5 " << macSinrBin5 << " macSinrBin6 " << macSinrBin6
-                     << " macSinrBin7 " << macSinrBin7 << " rlcBufferOccup " << rlcBufferOccup);
+                     << " macSinrBin7 " << macSinrBin7 << " rlcBufferOccup " << rlcBufferOccup
+                     << " rlcBufferMax " << rlcBufferMax);
 
         // UE-specific Downlink IP combined EN-DC throughput from NR gNb. Unit is kbps. Pdcp based
         // computation This value is not requested anymore, so it has been removed from the
@@ -985,6 +1075,17 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
     m_drbThrDlPdcpBasedComputationUeid.clear();
     m_drbThrDlUeid.clear();
 
+    // Aggregate PRBs by slice and cap each slice once by its configured quota.
+    for (const auto& sliceAcc : macPrbsBySlice)
+    {
+        uint8_t sst = sliceAcc.first;
+        double slicePrbSum = sliceAcc.second;
+        double sliceCap = slicePrbCapBySst.find(sst) != slicePrbCapBySst.end()
+                              ? slicePrbCapBySst.at(sst)
+                              : 273.0;
+        macPrbsCellSpecific += std::min(slicePrbSum, sliceCap);
+    }
+
     // Denominator = (Total number of rows (TTIs) within a given time window* 14)
     // Numerator = (Sum of number of symbols across all rows (TTIs) group by cell ID within a given
     // time window) * 139 Average Number of PRBs allocated for the UE = (NR/DR) (where 139 is the
@@ -1010,8 +1111,8 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
         << macSinrBin5CellSpecific << " macSinrBin6CellSpecific " << macSinrBin6CellSpecific
         << " macSinrBin7CellSpecific " << macSinrBin7CellSpecific);
 
-    long dlAvailablePrbs = 139; // TODO this is for the current configuration, make it configurable
-    long ulAvailablePrbs = 139; // TODO this is for the current configuration, make it configurable
+    long dlAvailablePrbs = 273; // TODO this is for the current configuration, make it configurable
+    long ulAvailablePrbs = 273; // TODO this is for the current configuration, make it configurable
     long qci = 1;
     long dlPrbUsage = std::min((long)(prbUtilizationDl / dlAvailablePrbs * 100),
                                (long)100); // percentage of used PRBs

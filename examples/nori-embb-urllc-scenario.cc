@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
     double txPower = 0.0;
     double ueTxPower = 0.0;
 
-    std::string ipE2TermRic = "10.244.0.188";
+    std::string ipE2TermRic = "10.244.0.104";
 
     std::vector<int> uesPerSlice;
     std::vector<uint8_t> sstPerSlice;
@@ -296,7 +296,7 @@ int main(int argc, char* argv[])
 
     // Enable/disable RAN slicing with RL scheduler
     bool enableRanSlicing = true;
-    bool enablenori = false;
+    bool enablenori = true;
     
     CommandLine cmd;
     cmd.AddValue("enableRanSlicing", "Enable RAN Slicing with RL scheduler", enableRanSlicing);
@@ -403,7 +403,7 @@ int main(int argc, char* argv[])
     Ptr<NrChannelHelper> channelHelper = CreateObject<NrChannelHelper>();
     channelHelper->ConfigureFactories("UMa", "Default", "ThreeGpp");
     channelHelper->SetPathlossAttribute("ShadowingEnabled", BooleanValue(false));
-    channelHelper->SetChannelConditionModelAttribute("UpdatePeriod", TimeValue(MilliSeconds(0)));
+    channelHelper->SetChannelConditionModelAttribute("UpdatePeriod", TimeValue(MilliSeconds(10)));
     channelHelper->AssignChannelsToBands({band});
     allBwps = CcBwpCreator::GetAllBwps({band});
 
@@ -416,9 +416,9 @@ int main(int argc, char* argv[])
     NetDeviceContainer ueDevs = nrHelper->InstallUeDevice(ueNodes, allBwps);
 
     // Enable E2 support on gNBs
-    // auto e2 = CreateObject<E2TermHelper>();
-    // e2->SetAttribute("E2TermIp", StringValue(ipE2TermRic));
-    // e2->InstallE2Term(gNbDevs);
+    auto e2 = CreateObject<E2TermHelper>();
+    e2->SetAttribute("E2TermIp", StringValue(ipE2TermRic));
+    e2->InstallE2Term(gNbDevs);
 
     nrHelper->AttachToClosestGnb(ueDevs, gNbDevs);
 
@@ -577,21 +577,21 @@ int main(int argc, char* argv[])
         }
     }
 
-    // // Simple UDP echo connectivity test
-    // NS_LOG_INFO("Installing UDP Echo test...");
-    // uint16_t echoPort = 9;
-    // UdpEchoServerHelper echoServer(echoPort);
-    // ApplicationContainer serverApps = echoServer.Install(remoteHostContainer.Get(0));
-    // serverApps.Start(Seconds(0.0));
-    // serverApps.Stop(Seconds(simTime));
-    
-    // UdpEchoClientHelper echoClient(remoteHostAddr, echoPort);
-    // echoClient.SetAttribute("MaxPackets", UintegerValue(1));
-    // echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
-    // echoClient.SetAttribute("PacketSize", UintegerValue(1024));
-    // ApplicationContainer clientApps = echoClient.Install(ueNodes.Get(0));
-    // clientApps.Start(Seconds(0.5));
-    // clientApps.Stop(Seconds(simTime));
+     // Simple UDP echo connectivity test
+     NS_LOG_INFO("Installing UDP Echo test...");
+     uint16_t echoPort = 9;
+     UdpEchoServerHelper echoServer(echoPort);
+     ApplicationContainer serverApps = echoServer.Install(remoteHostContainer.Get(0));
+     serverApps.Start(Seconds(0.0));
+     serverApps.Stop(Seconds(simTime));
+
+     UdpEchoClientHelper echoClient(remoteHostAddr, echoPort);
+     echoClient.SetAttribute("MaxPackets", UintegerValue(1));
+     echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
+     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
+     ApplicationContainer clientApps = echoClient.Install(ueNodes.Get(0));
+     clientApps.Start(Seconds(0.5));
+     clientApps.Stop(Seconds(simTime));
 
     // FlowMonitor statistics
     FlowMonitorHelper flowmonHelper;
