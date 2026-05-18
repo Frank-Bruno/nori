@@ -29,7 +29,7 @@ class MmWaveIndicationMessageHelper : public IndicationMessageHelper
 
     void FillCuUpValues(std::string plmId);
 
-    void AddCuUpUePmItem(std::string ueImsiComplete, long txPdcpPduBytesNrRlc, long txPdcpPduNrRlc, double pdcpThroughput, double rlcLatency);
+    void AddCuUpUePmItem(std::string ueImsiComplete, long txPdcpPduBytesNrRlc, long txPdcpPduNrRlc, double pdcpThroughput, double rlcLatency, long rlcBufferOccup);
 
     void FillCuCpValues(uint16_t numActiveUes);
 
@@ -57,7 +57,7 @@ class MmWaveIndicationMessageHelper : public IndicationMessageHelper
                long macSinrBin5,
                long macSinrBin6,
                long macSinrBin7,
-               long rlcBufferOccup,
+               //long rlcBufferOccup,
                double drbThrDlUeid,
                long sst);
 
@@ -82,7 +82,7 @@ class MmWaveIndicationMessageHelper : public IndicationMessageHelper
                          long macSinrBin5CellSpecific,
                          long macSinrBin6CellSpecific,
                          long macSinrBin7CellSpecific,
-                         long rlcBufferOccupCellSpecific,
+                         //long rlcBufferOccupCellSpecific,
                          long activeUeDl);
     void AddDuCellResRepPmItem(Ptr<CellResourceReport> cellResRep);
     void AddCuCpUePmItem(std::string ueImsiComplete,

@@ -30,7 +30,8 @@ MmWaveIndicationMessageHelper::AddCuUpUePmItem(std::string ueImsiComplete,
                                                long txPdcpPduBytesNrRlc,
                                                long txPdcpPduNrRlc,
                                                double pdcpThroughput,
-                                                double rlcLatency)
+                                               double rlcLatency,
+                                               long rlcBufferOccup)
 {
     Ptr<MeasurementItemList> ueVal = Create<MeasurementItemList>(ueImsiComplete);
     if (!m_reducedPmValues)
@@ -44,6 +45,7 @@ MmWaveIndicationMessageHelper::AddCuUpUePmItem(std::string ueImsiComplete,
         ueVal->AddItem<float>("DRB.PdcpSduBitRateDl.UEID", pdcpThroughput);
 
         ueVal->AddItem<float>("DRB.AvgRlcLatencyDl.UEID", rlcLatency);
+        ueVal->AddItem<long>("DRB.BufferSize.Qos.UEID", rlcBufferOccup);
     }
 
     m_msgValues.m_ueIndications.insert(ueVal);
@@ -91,7 +93,7 @@ MmWaveIndicationMessageHelper::AddDuUePmItem(std::string ueImsiComplete,
                                              long macSinrBin5,
                                              long macSinrBin6,
                                              long macSinrBin7,
-                                             long rlcBufferOccup,
+                                             //long rlcBufferOccup,
                                              double drbThrDlUeid,
                                              long sst)
 {
@@ -119,7 +121,7 @@ MmWaveIndicationMessageHelper::AddDuUePmItem(std::string ueImsiComplete,
         ueVal->AddItem<long>("L1M.RS-SINR.Bin82.UEID", macSinrBin5);
         ueVal->AddItem<long>("L1M.RS-SINR.Bin94.UEID", macSinrBin6);
         ueVal->AddItem<long>("L1M.RS-SINR.Bin127.UEID", macSinrBin7);
-        ueVal->AddItem<long>("DRB.BufferSize.Qos.UEID", rlcBufferOccup);
+        //ueVal->AddItem<long>("DRB.BufferSize.Qos.UEID", rlcBufferOccup);
     }
 
     ueVal->AddItem<double>("DRB.UEThpDl.UEID", drbThrDlUeid);
@@ -151,7 +153,7 @@ MmWaveIndicationMessageHelper::AddDuCellPmItem(long macPduCellSpecific,
                                                long macSinrBin5CellSpecific,
                                                long macSinrBin6CellSpecific,
                                                long macSinrBin7CellSpecific,
-                                               long rlcBufferOccupCellSpecific,
+                                               //long rlcBufferOccupCellSpecific,
                                                long activeUeDl)
 {
     Ptr<MeasurementItemList> cellVal = Create<MeasurementItemList>();
@@ -184,7 +186,7 @@ MmWaveIndicationMessageHelper::AddDuCellPmItem(long macPduCellSpecific,
         cellVal->AddItem<long>("L1M.RS-SINR.Bin82", macSinrBin5CellSpecific);
         cellVal->AddItem<long>("L1M.RS-SINR.Bin94", macSinrBin6CellSpecific);
         cellVal->AddItem<long>("L1M.RS-SINR.Bin127", macSinrBin7CellSpecific);
-        cellVal->AddItem<long>("DRB.BufferSize.Qos", rlcBufferOccupCellSpecific);
+        //cellVal->AddItem<long>("DRB.BufferSize.Qos", rlcBufferOccupCellSpecific);
     }
 
     cellVal->AddItem<long>("DRB.MeanActiveUeDl", activeUeDl);
