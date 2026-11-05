@@ -4,14 +4,13 @@
 #include "kpm-indication.h"
 #include "oran-interface.h"
 
-#include "ns3/nori-slicing-helper.h"
-
 #include "ns3/attribute.h"
 #include "ns3/bandwidth-part-gnb.h"
 #include "ns3/config.h"
 #include "ns3/double.h"
 #include "ns3/log.h"
 #include "ns3/mmwave-indication-message-helper.h"
+#include "ns3/nori-slicing-helper.h"
 #include "ns3/nr-gnb-mac.h"
 #include "ns3/nr-gnb-net-device.h"
 #include "ns3/nr-gnb-rrc.h"
@@ -37,7 +36,6 @@
 #include "ns3/uinteger.h"
 
 #include <cstdio>
-
 #include <encode_e2apv1.hpp>
 
 namespace ns3
@@ -77,7 +75,7 @@ E2Interface::GetTypeId()
                                           MakePointerChecker<NetDevice>())
                             .AddAttribute("E2Periodicity",
                                           "The periodicity of the E2 report messages",
-                                          DoubleValue(0.1),
+                                          DoubleValue(0.01),
                                           MakeDoubleAccessor(&E2Interface::m_e2Periodicity),
                                           MakeDoubleChecker<double>())
                             .AddAttribute("StartTime",
@@ -377,10 +375,18 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
 
     // sum of the per-user average latency
     double perUserAverageLatencySum = 0;
-    
-    // buffer occupancy 
+
+    // buffer occupancy
     uint32_t rlcBufferOccupCellSpecific = 0;
     uint32_t rlcBufferMaxCellSpecific = 0;
+
+    uint32_t macSinrBin1CellSpecific = 0;
+    uint32_t macSinrBin2CellSpecific = 0;
+    uint32_t macSinrBin3CellSpecific = 0;
+    uint32_t macSinrBin4CellSpecific = 0;
+    uint32_t macSinrBin5CellSpecific = 0;
+    uint32_t macSinrBin6CellSpecific = 0;
+    uint32_t macSinrBin7CellSpecific = 0;
 
     std::unordered_map<uint64_t, std::string> uePmString{};
 
@@ -490,27 +496,61 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
 
         m_drbThrDlUeid[imsi] = rlcBitrate;
 
-         // get buffer occupancy info
+        // get buffer occupancy info
         uint32_t rlcBufferOccup = 0;
         uint32_t rlcBufferMax = 0;
+        uint32_t numDrbs = drbMap.GetN();
         bool printedRlcType = false;
-        //ObjectMapValue drbMap;
-        //ue->GetAttribute("DataRadioBearerMap", drbMap);
+
+        uint32_t macSinrBin1 = m_e2DuCalculator->GetMacSinrBin1UeSpecific(rnti, m_cellId);
+        macSinrBin1CellSpecific += macSinrBin1;
+
+        uint32_t macSinrBin2 = m_e2DuCalculator->GetMacSinrBin2UeSpecific(rnti, m_cellId);
+        macSinrBin2CellSpecific += macSinrBin2;
+
+        uint32_t macSinrBin3 = m_e2DuCalculator->GetMacSinrBin3UeSpecific(rnti, m_cellId);
+        macSinrBin3CellSpecific += macSinrBin3;
+
+        uint32_t macSinrBin4 = m_e2DuCalculator->GetMacSinrBin4UeSpecific(rnti, m_cellId);
+        macSinrBin4CellSpecific += macSinrBin4;
+
+        uint32_t macSinrBin5 = m_e2DuCalculator->GetMacSinrBin5UeSpecific(rnti, m_cellId);
+        macSinrBin5CellSpecific += macSinrBin5;
+
+        uint32_t macSinrBin6 = m_e2DuCalculator->GetMacSinrBin6UeSpecific(rnti, m_cellId);
+        macSinrBin6CellSpecific += macSinrBin6;
+
+        uint32_t macSinrBin7 = m_e2DuCalculator->GetMacSinrBin7UeSpecific(rnti, m_cellId);
+        macSinrBin7CellSpecific += macSinrBin7;
+
+        std::fprintf(stdout,
+                     "[E2Interface] UE IMSI=%llu RNTI=%u numDRBs=%u\n",
+                     static_cast<unsigned long long>(imsi),
+                     static_cast<unsigned>(rnti),
+                     static_cast<unsigned>(numDrbs));
+
         for (auto dr = drbMap.Begin(); dr != drbMap.End(); dr++)
         {
             NS_ABORT_MSG_IF(dr->second == nullptr, "DRB is null");
+            uint8_t drbId = dr->first;
             // dr->second is Ptr<NrDataRadioBearerInfo>
             Ptr<NrDataRadioBearerInfo> bearerInfo = dr->second->GetObject<NrDataRadioBearerInfo>();
             if (!bearerInfo)
             {
-                std::fprintf(stderr, "[E2Interface] bearerInfo is null for UE IMSI=%llu RNTI=%u\n",
-                             static_cast<unsigned long long>(imsi), static_cast<unsigned>(rnti));
+                std::fprintf(stderr,
+                             "[E2Interface] bearerInfo is null for UE IMSI=%llu RNTI=%u DRB=%u\n",
+                             static_cast<unsigned long long>(imsi),
+                             static_cast<unsigned>(rnti),
+                             static_cast<unsigned>(drbId));
             }
             else if (!bearerInfo->m_rlc)
             {
-                std::fprintf(stderr,
-                             "[E2Interface] bearerInfo->m_rlc is null for UE IMSI=%llu RNTI=%u\n",
-                             static_cast<unsigned long long>(imsi), static_cast<unsigned>(rnti));
+                std::fprintf(
+                    stderr,
+                    "[E2Interface] bearerInfo->m_rlc is null for UE IMSI=%llu RNTI=%u DRB=%u\n",
+                    static_cast<unsigned long long>(imsi),
+                    static_cast<unsigned>(rnti),
+                    static_cast<unsigned>(drbId));
             }
             else
             {
@@ -522,7 +562,8 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
                 if (!printedRlcType)
                 {
                     std::fprintf(stdout,
-                                 "[E2Interface] found RLC object type=%s for UE IMSI=%llu RNTI=%u; isAm=%d isUm=%d isTm=%d\n",
+                                 "[E2Interface] found RLC object type=%s for UE IMSI=%llu RNTI=%u; "
+                                 "isAm=%d isUm=%d isTm=%d\n",
                                  typeName,
                                  static_cast<unsigned long long>(imsi),
                                  static_cast<unsigned>(rnti),
@@ -531,27 +572,37 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
                                  (rlcTm != nullptr));
                     printedRlcType = true;
                 }
+                uint32_t bearerOccup = 0;
+                uint32_t bearerMax = 0;
+                const char* bearerType = "unknown";
                 if (rlcAm)
                 {
-                    // AM: use the NR internal AM transmit-on buffer size
-                    rlcBufferOccup += rlcAm->m_txonBufferSize;
-                    rlcBufferMax += rlcAm->m_maxTxBufferSize;
+                    bearerType = "AM";
+                    bearerOccup = rlcAm->m_txonBufferSize;
+                    bearerMax = rlcAm->m_maxTxBufferSize;
                 }
                 else if (rlcUm)
                 {
-                    // UM: use the NR internal UM transmit buffer size
-                    rlcBufferOccup += rlcUm->m_txBufferSize;
-                    rlcBufferMax += rlcUm->m_maxTxBufferSize;
+                    bearerType = "UM";
+                    bearerOccup = rlcUm->m_txBufferSize;
+                    bearerMax = rlcUm->m_maxTxBufferSize;
                 }
                 else if (rlcTm)
                 {
-                    // TM: use the NR internal TM transmit buffer size
-                    rlcBufferOccup += rlcTm->m_txBufferSize;
-                    rlcBufferMax += rlcTm->m_maxTxBufferSize;
+                    bearerType = "TM";
+                    bearerOccup = rlcTm->m_txBufferSize;
+                    bearerMax = rlcTm->m_maxTxBufferSize;
                 }
+                rlcBufferOccup += bearerOccup;
+                rlcBufferMax += bearerMax;
+                std::fprintf(stdout,
+                             "  DRB=%u type=%s occupy=%u max=%u\n",
+                             static_cast<unsigned>(drbId),
+                             bearerType,
+                             static_cast<unsigned>(bearerOccup),
+                             static_cast<unsigned>(bearerMax));
             }
         }
-        
 
         /**
          *
@@ -566,13 +617,22 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
         rlcBufferMaxCellSpecific += rlcBufferMax;
         // Print rlcBufferOccup de forma destacada para facilitar depuração/observação.
         // Usa fprintf para saída direta no stdout.
-        std::fprintf(stdout,
-             "=== RLC BUFFER OCCUPANCY === Cell=%u IMSI=%llu RNTI=%u RLC_BUFFER_OCC=%u bytes RLC_BUFFER_MAX=%u bytes ===\n",
-                 static_cast<unsigned>(m_cellId),
-                 static_cast<unsigned long long>(imsi),
-                 static_cast<unsigned>(rnti),
-             static_cast<unsigned>(rlcBufferOccup),
-             static_cast<unsigned>(rlcBufferMax));
+        //std::fprintf(stdout,
+        //             "=== RLC BUFFER OCCUPANCY === Cell=%u IMSI=%llu RNTI=%u RLC_BUFFER_OCC=%u "
+        //             "bytes RLC_BUFFER_MAX=%u bytes SINR_BIN1=%u SINR_BIN2=%u SINR_BIN3=%u "
+        //             "SINR_BIN4=%u SINR_BIN5=%u SINR_BIN6=%u SINR_BIN7=%u ===\n",
+        //             static_cast<unsigned>(m_cellId),
+        //             static_cast<unsigned long long>(imsi),
+        //             static_cast<unsigned>(rnti),
+        //             static_cast<unsigned>(rlcBufferOccup),
+        //             static_cast<unsigned>(rlcBufferMax),
+        //             static_cast<unsigned>(macSinrBin1),
+        //             static_cast<unsigned>(macSinrBin2),
+        //             static_cast<unsigned>(macSinrBin3),
+        //             static_cast<unsigned>(macSinrBin4),
+        //             static_cast<unsigned>(macSinrBin5),
+        //             static_cast<unsigned>(macSinrBin6),
+        //             static_cast<unsigned>(macSinrBin7));
 
         NS_LOG_DEBUG("[" << Simulator::Now().GetSeconds() << "s]"
                          << "Cell id: " << m_cellId << " connected UE with IMSI " << imsi
@@ -584,13 +644,32 @@ E2Interface::BuildRicIndicationMessageCuUp(std::string plmId)
 
         if (!indicationMessageHelper->IsOffline())
         {
+            // Compute packet loss rate using MAC initial transmissions and retransmissions
+            uint32_t macInitial =
+                m_e2DuCalculator->GetMacPduInitialTransmissionUeSpecific(rnti, m_cellId);
+            uint32_t macRetx = m_e2DuCalculator->GetMacPduRetransmissionUeSpecific(rnti, m_cellId);
+            double pktLossRate = 0.0;
+            uint64_t denom = (uint64_t)macInitial + (uint64_t)macRetx;
+            if (denom != 0)
+            {
+                pktLossRate = (double)macRetx / (double)denom * 100.0; // percentage
+            }
+
             indicationMessageHelper->AddCuUpUePmItem(ueImsiComplete,
                                                      txPdcpPduBytesNrRlc,
                                                      txPdcpPduNrRlc,
                                                      pdcpThroughput,
                                                      rlcLatency,
-                                                     rlcBufferOccup
-                                                     );
+                                                     rlcBufferOccup,
+                                                     pktLossRate,
+                                                     macSinrBin1,
+                                                     macSinrBin2,
+                                                     macSinrBin3,
+                                                     macSinrBin4,
+                                                     macSinrBin5,
+                                                     macSinrBin6,
+                                                     macSinrBin7
+            );
         }
 
         uePmString.insert(std::make_pair(imsi,
@@ -864,8 +943,8 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
     uint32_t macSinrBin6CellSpecific = 0;
     uint32_t macSinrBin7CellSpecific = 0;
 
-//    uint32_t rlcBufferOccupCellSpecific = 0;
-//    uint32_t rlcBufferMaxCellSpecific = 0;
+    //    uint32_t rlcBufferOccupCellSpecific = 0;
+    //    uint32_t rlcBufferMaxCellSpecific = 0;
 
     double macPrbsCellSpecific = 0;
     std::unordered_map<uint8_t, double> macPrbsBySlice;
@@ -916,8 +995,8 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
             m_e2DuCalculator->GetMacNumberOfSymbolsUeSpecific(rnti, m_cellId);
 
         auto gnbNetDev = DynamicCast<NrGnbNetDevice>(m_netDev);
-        auto rlScheduler = gnbNetDev ? DynamicCast<NrRLMacSchedulerOfdma>(gnbNetDev->GetScheduler(0))
-                                     : nullptr;
+        auto rlScheduler =
+            gnbNetDev ? DynamicCast<NrRLMacSchedulerOfdma>(gnbNetDev->GetScheduler(0)) : nullptr;
         uint32_t sliceDedicatedRbPercent = 100;
         if (rlScheduler)
         {
@@ -947,7 +1026,8 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
         double macPrb = 0;
         if (denominatorPrb != 0)
         {
-            double sliceAvailablePrbs = 273.0 * static_cast<double>(sliceDedicatedRbPercent) / 100.0;
+            double sliceAvailablePrbs =
+                273.0 * static_cast<double>(sliceDedicatedRbPercent) / 100.0;
             macPrb = macNumberOfSymbols / denominatorPrb *
                      sliceAvailablePrbs; // TODO fix this for different numerologies
 
@@ -1005,104 +1085,107 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
          *
          */
         // get buffer occupancy info
-//        uint32_t rlcBufferOccup = 0;
-//        uint32_t rlcBufferMax = 0;
-//        bool printedRlcType = false;
-//        ObjectMapValue drbMap;
-//        ue->GetAttribute("DataRadioBearerMap", drbMap);
-//        for (auto dr = drbMap.Begin(); dr != drbMap.End(); dr++)
-//        {
-//            NS_ABORT_MSG_IF(dr->second == nullptr, "DRB is null");
-//            // dr->second is Ptr<NrDataRadioBearerInfo>
-//            Ptr<NrDataRadioBearerInfo> bearerInfo = dr->second->GetObject<NrDataRadioBearerInfo>();
-//            if (!bearerInfo)
-//            {
-//                std::fprintf(stderr, "[E2Interface] bearerInfo is null for UE IMSI=%llu RNTI=%u\n",
-//                             static_cast<unsigned long long>(imsi), static_cast<unsigned>(rnti));
-//            }
-//            else if (!bearerInfo->m_rlc)
-//            {
-//                std::fprintf(stderr,
-//                             "[E2Interface] bearerInfo->m_rlc is null for UE IMSI=%llu RNTI=%u\n",
-//                             static_cast<unsigned long long>(imsi), static_cast<unsigned>(rnti));
-//            }
-//            else
-//            {
-//                Ptr<NrRlc> nrRlc = bearerInfo->m_rlc;
-//                const char* typeName = nrRlc->GetInstanceTypeId().GetName().c_str();
-//                Ptr<NrRlcAm> rlcAm = DynamicCast<NrRlcAm>(nrRlc);
-//                Ptr<NrRlcUm> rlcUm = DynamicCast<NrRlcUm>(nrRlc);
-//                Ptr<NrRlcTm> rlcTm = DynamicCast<NrRlcTm>(nrRlc);
-//                if (!printedRlcType)
-//                {
-//                    std::fprintf(stdout,
-//                                 "[E2Interface] found RLC object type=%s for UE IMSI=%llu RNTI=%u; isAm=%d isUm=%d isTm=%d\n",
-//                                 typeName,
-//                                 static_cast<unsigned long long>(imsi),
-//                                 static_cast<unsigned>(rnti),
-//                                 (rlcAm != nullptr),
-//                                 (rlcUm != nullptr),
-//                                 (rlcTm != nullptr));
-//                    printedRlcType = true;
-//                }
-//                if (rlcAm)
-//                {
-//                    // AM: use the NR internal AM transmit-on buffer size
-//                    rlcBufferOccup += rlcAm->m_txonBufferSize;
-//                    rlcBufferMax += rlcAm->m_maxTxBufferSize;
-//                }
-//                else if (rlcUm)
-//                {
-//                    // UM: use the NR internal UM transmit buffer size
-//                    rlcBufferOccup += rlcUm->m_txBufferSize;
-//                    rlcBufferMax += rlcUm->m_maxTxBufferSize;
-//                }
-//                else if (rlcTm)
-//                {
-//                    // TM: use the NR internal TM transmit buffer size
-//                    rlcBufferOccup += rlcTm->m_txBufferSize;
-//                    rlcBufferMax += rlcTm->m_maxTxBufferSize;
-//                }
-//            }
-//        }
-//        
-//
-//        /**
-//         *
-//        auto rlcMap = ue.second->GetRlcMap(); // secondary-connected RLCs
-//        for (auto drb : rlcMap)
-//        {
-//            auto rlc = drb.second->m_rlc;
-//            rlcBufferOccup += GetRlcBufferOccupancy(rlc);
-//        }
-//         */
-//        rlcBufferOccupCellSpecific += rlcBufferOccup;
-//        rlcBufferMaxCellSpecific += rlcBufferMax;
-//        // Print rlcBufferOccup de forma destacada para facilitar depuração/observação.
-//        // Usa fprintf para saída direta no stdout.
-//        std::fprintf(stdout,
-//             "=== RLC BUFFER OCCUPANCY === Cell=%u IMSI=%llu RNTI=%u RLC_BUFFER_OCC=%u bytes RLC_BUFFER_MAX=%u bytes ===\n",
-//                 static_cast<unsigned>(m_cellId),
-//                 static_cast<unsigned long long>(imsi),
-//                 static_cast<unsigned>(rnti),
-//             static_cast<unsigned>(rlcBufferOccup),
-//             static_cast<unsigned>(rlcBufferMax));
+        //        uint32_t rlcBufferOccup = 0;
+        //        uint32_t rlcBufferMax = 0;
+        //        bool printedRlcType = false;
+        //        ObjectMapValue drbMap;
+        //        ue->GetAttribute("DataRadioBearerMap", drbMap);
+        //        for (auto dr = drbMap.Begin(); dr != drbMap.End(); dr++)
+        //        {
+        //            NS_ABORT_MSG_IF(dr->second == nullptr, "DRB is null");
+        //            // dr->second is Ptr<NrDataRadioBearerInfo>
+        //            Ptr<NrDataRadioBearerInfo> bearerInfo =
+        //            dr->second->GetObject<NrDataRadioBearerInfo>(); if (!bearerInfo)
+        //            {
+        //                std::fprintf(stderr, "[E2Interface] bearerInfo is null for UE IMSI=%llu
+        //                RNTI=%u\n",
+        //                             static_cast<unsigned long long>(imsi),
+        //                             static_cast<unsigned>(rnti));
+        //            }
+        //            else if (!bearerInfo->m_rlc)
+        //            {
+        //                std::fprintf(stderr,
+        //                             "[E2Interface] bearerInfo->m_rlc is null for UE IMSI=%llu
+        //                             RNTI=%u\n", static_cast<unsigned long long>(imsi),
+        //                             static_cast<unsigned>(rnti));
+        //            }
+        //            else
+        //            {
+        //                Ptr<NrRlc> nrRlc = bearerInfo->m_rlc;
+        //                const char* typeName = nrRlc->GetInstanceTypeId().GetName().c_str();
+        //                Ptr<NrRlcAm> rlcAm = DynamicCast<NrRlcAm>(nrRlc);
+        //                Ptr<NrRlcUm> rlcUm = DynamicCast<NrRlcUm>(nrRlc);
+        //                Ptr<NrRlcTm> rlcTm = DynamicCast<NrRlcTm>(nrRlc);
+        //                if (!printedRlcType)
+        //                {
+        //                    std::fprintf(stdout,
+        //                                 "[E2Interface] found RLC object type=%s for UE IMSI=%llu
+        //                                 RNTI=%u; isAm=%d isUm=%d isTm=%d\n", typeName,
+        //                                 static_cast<unsigned long long>(imsi),
+        //                                 static_cast<unsigned>(rnti),
+        //                                 (rlcAm != nullptr),
+        //                                 (rlcUm != nullptr),
+        //                                 (rlcTm != nullptr));
+        //                    printedRlcType = true;
+        //                }
+        //                if (rlcAm)
+        //                {
+        //                    // AM: use the NR internal AM transmit-on buffer size
+        //                    rlcBufferOccup += rlcAm->m_txonBufferSize;
+        //                    rlcBufferMax += rlcAm->m_maxTxBufferSize;
+        //                }
+        //                else if (rlcUm)
+        //                {
+        //                    // UM: use the NR internal UM transmit buffer size
+        //                    rlcBufferOccup += rlcUm->m_txBufferSize;
+        //                    rlcBufferMax += rlcUm->m_maxTxBufferSize;
+        //                }
+        //                else if (rlcTm)
+        //                {
+        //                    // TM: use the NR internal TM transmit buffer size
+        //                    rlcBufferOccup += rlcTm->m_txBufferSize;
+        //                    rlcBufferMax += rlcTm->m_maxTxBufferSize;
+        //                }
+        //            }
+        //        }
+        //
+        //
+        //        /**
+        //         *
+        //        auto rlcMap = ue.second->GetRlcMap(); // secondary-connected RLCs
+        //        for (auto drb : rlcMap)
+        //        {
+        //            auto rlc = drb.second->m_rlc;
+        //            rlcBufferOccup += GetRlcBufferOccupancy(rlc);
+        //        }
+        //         */
+        //        rlcBufferOccupCellSpecific += rlcBufferOccup;
+        //        rlcBufferMaxCellSpecific += rlcBufferMax;
+        //        // Print rlcBufferOccup de forma destacada para facilitar depuração/observação.
+        //        // Usa fprintf para saída direta no stdout.
+        //        std::fprintf(stdout,
+        //             "=== RLC BUFFER OCCUPANCY === Cell=%u IMSI=%llu RNTI=%u RLC_BUFFER_OCC=%u
+        //             bytes RLC_BUFFER_MAX=%u bytes ===\n",
+        //                 static_cast<unsigned>(m_cellId),
+        //                 static_cast<unsigned long long>(imsi),
+        //                 static_cast<unsigned>(rnti),
+        //             static_cast<unsigned>(rlcBufferOccup),
+        //             static_cast<unsigned>(rlcBufferMax));
 
-        NS_LOG_DEBUG(Simulator::Now().GetSeconds()
-                     << " " << m_cellId << " cell, connected UE with IMSI " << imsi << " rnti "
-                     << rnti << " macPduUe " << macPduUe << " macPduInitialUe " << macPduInitialUe
-                     << " macVolume " << macVolume << " macQpsk " << macQpsk << " mac16Qam "
-                     << mac16Qam << " mac64Qam " << mac64Qam << " macRetx " << macRetx << " macPrb "
-                     << macPrb << " macMac04 " << macMac04 << " macMac59 " << macMac59
-                     << " macMac1014 " << macMac1014 << " macMac1519 " << macMac1519
-                     << " macMac2024 " << macMac2024 << " macMac2529 " << macMac2529
-                     << " macSinrBin1 " << macSinrBin1 << " macSinrBin2 " << macSinrBin2
-                     << " macSinrBin3 " << macSinrBin3 << " macSinrBin4 " << macSinrBin4
-                     << " macSinrBin5 " << macSinrBin5 << " macSinrBin6 " << macSinrBin6
-                     << " macSinrBin7 " << macSinrBin7 
-                    // << " rlcBufferOccup " << rlcBufferOccup
-                    // << " rlcBufferMax " << rlcBufferMax
-                    );
+        NS_LOG_DEBUG(
+            Simulator::Now().GetSeconds()
+            << " " << m_cellId << " cell, connected UE with IMSI " << imsi << " rnti " << rnti
+            << " macPduUe " << macPduUe << " macPduInitialUe " << macPduInitialUe << " macVolume "
+            << macVolume << " macQpsk " << macQpsk << " mac16Qam " << mac16Qam << " mac64Qam "
+            << mac64Qam << " macRetx " << macRetx << " macPrb " << macPrb << " macMac04 "
+            << macMac04 << " macMac59 " << macMac59 << " macMac1014 " << macMac1014
+            << " macMac1519 " << macMac1519 << " macMac2024 " << macMac2024 << " macMac2529 "
+            << macMac2529 << " macSinrBin1 " << macSinrBin1 << " macSinrBin2 " << macSinrBin2
+            << " macSinrBin3 " << macSinrBin3 << " macSinrBin4 " << macSinrBin4 << " macSinrBin5 "
+            << macSinrBin5 << " macSinrBin6 " << macSinrBin6 << " macSinrBin7 " << macSinrBin7
+            // << " rlcBufferOccup " << rlcBufferOccup
+            // << " rlcBufferMax " << rlcBufferMax
+        );
 
         // UE-specific Downlink IP combined EN-DC throughput from NR gNb. Unit is kbps. Pdcp based
         // computation This value is not requested anymore, so it has been removed from the
@@ -1118,30 +1201,30 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
             m_drbThrDlUeid.find(imsi) != m_drbThrDlUeid.end() ? m_drbThrDlUeid.at(imsi) : 0;
 
         indicationMessageHelper->AddDuUePmItem(ueImsiComplete,
-                               macPduUe,
-                               macPduInitialUe,
-                               macQpsk,
-                               mac16Qam,
-                               mac64Qam,
-                               macRetx,
-                               macVolume,
-                               macPrb,
-                               macMac04,
-                               macMac59,
-                               macMac1014,
-                               macMac1519,
-                               macMac2024,
-                               macMac2529,
-                               macSinrBin1,
-                               macSinrBin2,
-                               macSinrBin3,
-                               macSinrBin4,
-                               macSinrBin5,
-                               macSinrBin6,
-                               macSinrBin7,
-                               //rlcBufferOccup,
-                               drbThrDlUeid,
-                               static_cast<long>(sst));
+                                               macPduUe,
+                                               macPduInitialUe,
+                                               macQpsk,
+                                               mac16Qam,
+                                               mac64Qam,
+                                               macRetx,
+                                               macVolume,
+                                               macPrb,
+                                               macMac04,
+                                               macMac59,
+                                               macMac1014,
+                                               macMac1519,
+                                               macMac2024,
+                                               macMac2529,
+                                               // macSinrBin1,
+                                               // macSinrBin2,
+                                               // macSinrBin3,
+                                               // macSinrBin4,
+                                               // macSinrBin5,
+                                               // macSinrBin6,
+                                               // macSinrBin7,
+                                               // rlcBufferOccup,
+                                               drbThrDlUeid,
+                                               static_cast<long>(sst));
 
         uePmStringDu.insert(std::make_pair(
             imsi,
@@ -1172,9 +1255,8 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
     {
         uint8_t sst = sliceAcc.first;
         double slicePrbSum = sliceAcc.second;
-        double sliceCap = slicePrbCapBySst.find(sst) != slicePrbCapBySst.end()
-                              ? slicePrbCapBySst.at(sst)
-                              : 273.0;
+        double sliceCap =
+            slicePrbCapBySst.find(sst) != slicePrbCapBySst.end() ? slicePrbCapBySst.at(sst) : 273.0;
         macPrbsCellSpecific += std::min(slicePrbSum, sliceCap);
     }
 
@@ -1233,7 +1315,7 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
                                                  macSinrBin5CellSpecific,
                                                  macSinrBin6CellSpecific,
                                                  macSinrBin7CellSpecific,
-                                                 //rlcBufferOccupCellSpecific,
+                                                 // rlcBufferOccupCellSpecific,
                                                  ueManager.GetN());
 
         Ptr<CellResourceReport> cellResRep = Create<CellResourceReport>();
@@ -1318,7 +1400,7 @@ E2Interface::BuildRicIndicationMessageDu(std::string plmId, uint16_t nrCellId)
             std::to_string(macSinrBin5CellSpecific) + "," +
             std::to_string(macSinrBin6CellSpecific) + "," +
             std::to_string(macSinrBin7CellSpecific) + "," +
-            //std::to_string(rlcBufferOccupCellSpecific) + "," + 
+            // std::to_string(rlcBufferOccupCellSpecific) + "," +
             std::to_string(ueManager.GetN());
 
         m_rrc->GetAttribute("UeMap", ueManager);

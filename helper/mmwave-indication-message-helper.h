@@ -29,7 +29,21 @@ class MmWaveIndicationMessageHelper : public IndicationMessageHelper
 
     void FillCuUpValues(std::string plmId);
 
-    void AddCuUpUePmItem(std::string ueImsiComplete, long txPdcpPduBytesNrRlc, long txPdcpPduNrRlc, double pdcpThroughput, double rlcLatency, long rlcBufferOccup);
+    void AddCuUpUePmItem(std::string ueImsiComplete,
+              long txPdcpPduBytesNrRlc,
+              long txPdcpPduNrRlc,
+              double pdcpThroughput,
+              double rlcLatency,
+              long rlcBufferOccup,
+              double pktLossRate,
+              long macSinrBin1,
+              long macSinrBin2,
+              long macSinrBin3,
+              long macSinrBin4,
+              long macSinrBin5,
+              long macSinrBin6,
+              long macSinrBin7
+            );
 
     void FillCuCpValues(uint16_t numActiveUes);
 
@@ -50,13 +64,13 @@ class MmWaveIndicationMessageHelper : public IndicationMessageHelper
                long macMac1519,
                long macMac2024,
                long macMac2529,
-               long macSinrBin1,
-               long macSinrBin2,
-               long macSinrBin3,
-               long macSinrBin4,
-               long macSinrBin5,
-               long macSinrBin6,
-               long macSinrBin7,
+               //long macSinrBin1,
+               //long macSinrBin2,
+               //long macSinrBin3,
+               //long macSinrBin4,
+               //long macSinrBin5,
+               //long macSinrBin6,
+               //long macSinrBin7,
                //long rlcBufferOccup,
                double drbThrDlUeid,
                long sst);

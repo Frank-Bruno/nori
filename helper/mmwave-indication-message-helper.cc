@@ -31,7 +31,16 @@ MmWaveIndicationMessageHelper::AddCuUpUePmItem(std::string ueImsiComplete,
                                                long txPdcpPduNrRlc,
                                                double pdcpThroughput,
                                                double rlcLatency,
-                                               long rlcBufferOccup)
+                                               long rlcBufferOccup,
+                                               double pktLossRate,
+                                               long macSinrBin1,
+                                               long macSinrBin2,
+                                               long macSinrBin3,
+                                               long macSinrBin4,
+                                               long macSinrBin5,
+                                               long macSinrBin6,
+                                               long macSinrBin7
+                                            )
 {
     Ptr<MeasurementItemList> ueVal = Create<MeasurementItemList>(ueImsiComplete);
     if (!m_reducedPmValues)
@@ -46,6 +55,17 @@ MmWaveIndicationMessageHelper::AddCuUpUePmItem(std::string ueImsiComplete,
 
         ueVal->AddItem<float>("DRB.AvgRlcLatencyDl.UEID", rlcLatency);
         ueVal->AddItem<long>("DRB.BufferSize.Qos.UEID", rlcBufferOccup);
+        // UE-specific packet loss rate (percentage)
+        ueVal->AddItem<float>("DRB.PktLossRateDl.UEID", (float)pktLossRate);
+
+        //SINR bins
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin34.UEID", macSinrBin1);
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin46.UEID", macSinrBin2);
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin58.UEID", macSinrBin3);
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin70.UEID", macSinrBin4);
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin82.UEID", macSinrBin5);
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin94.UEID", macSinrBin6);
+        ueVal->AddItem<long>("L1M.RS-SINR.Bin127.UEID", macSinrBin7);
     }
 
     m_msgValues.m_ueIndications.insert(ueVal);
@@ -86,13 +106,13 @@ MmWaveIndicationMessageHelper::AddDuUePmItem(std::string ueImsiComplete,
                                              long macMac1519,
                                              long macMac2024,
                                              long macMac2529,
-                                             long macSinrBin1,
-                                             long macSinrBin2,
-                                             long macSinrBin3,
-                                             long macSinrBin4,
-                                             long macSinrBin5,
-                                             long macSinrBin6,
-                                             long macSinrBin7,
+                                             //long macSinrBin1,
+                                             //long macSinrBin2,
+                                             //long macSinrBin3,
+                                             //long macSinrBin4,
+                                             //long macSinrBin5,
+                                             //long macSinrBin6,
+                                             //long macSinrBin7,
                                              //long rlcBufferOccup,
                                              double drbThrDlUeid,
                                              long sst)
@@ -114,13 +134,13 @@ MmWaveIndicationMessageHelper::AddDuUePmItem(std::string ueImsiComplete,
         ueVal->AddItem<long>("CARR.PDSCHMCSDist.Bin4.UEID", macMac1519);
         ueVal->AddItem<long>("CARR.PDSCHMCSDist.Bin5.UEID", macMac2024);
         ueVal->AddItem<long>("CARR.PDSCHMCSDist.Bin6.UEID", macMac2529);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin34.UEID", macSinrBin1);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin46.UEID", macSinrBin2);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin58.UEID", macSinrBin3);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin70.UEID", macSinrBin4);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin82.UEID", macSinrBin5);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin94.UEID", macSinrBin6);
-        ueVal->AddItem<long>("L1M.RS-SINR.Bin127.UEID", macSinrBin7);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin34.UEID", macSinrBin1);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin46.UEID", macSinrBin2);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin58.UEID", macSinrBin3);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin70.UEID", macSinrBin4);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin82.UEID", macSinrBin5);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin94.UEID", macSinrBin6);
+        //ueVal->AddItem<long>("L1M.RS-SINR.Bin127.UEID", macSinrBin7);
         //ueVal->AddItem<long>("DRB.BufferSize.Qos.UEID", rlcBufferOccup);
     }
 

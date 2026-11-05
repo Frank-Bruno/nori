@@ -7,11 +7,7 @@
   },
   "simulation": {
     "_comment": "Global simulation parameters.",
-<<<<<<< HEAD
-    "duration": 1000
-=======
-    "duration": 5
->>>>>>> upstream/feature/dynamic-slice-configuration
+    "duration": 200
   },
   "NR": {
     "_comment": "Physical parameters of the NR cell.",
@@ -23,6 +19,27 @@
   },
   "traffic": {
     "_comment": "Traffic profiles per slice type (eMBB, URLLC).",
+    "s1": {
+      "_comment": "eMBB traffic: high throughput, less strict delay constraints.",
+      "packetSize": 1400,
+      "bitrateMbps": 50,
+      "onTimeMean": 1.0,
+      "offTimeMean": 0.0
+    },
+    "s2": {
+      "_comment": "eMBB traffic: high throughput, less strict delay constraints.",
+      "packetSize": 1400,
+      "bitrateMbps": 20,
+      "onTimeMean": 1.0,
+      "offTimeMean": 0.0
+    },
+    "s3": {
+      "_comment": "eMBB traffic: high throughput, less strict delay constraints.",
+      "packetSize": 1400,
+      "bitrateMbps": 15,
+      "onTimeMean": 1.0,
+      "offTimeMean": 0.0
+    },
     "eMBB": {
       "_comment": "eMBB traffic: high throughput, less strict delay constraints.",
       "packetSize": 1400,
@@ -40,18 +57,21 @@
   },
   "slices": {
     "_comment": "RAN slicing configuration: number of UEs per slice and associated traffic type.",
-    "numSlices": 2,
+    "numSlices": 3,
     "UesPerSlice": [
-      2,
-      3
+      3,
+      4,
+      4
     ],
     "trafficTypes": [
-      "eMBB",
-      "eMBB"
+      "s1",
+      "s2",
+      "s3"
     ],
     "SstPerSlice": [
       1,
-      2
+      2,
+      3
     ]
   }
 }

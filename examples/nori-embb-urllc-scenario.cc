@@ -7,33 +7,32 @@
 #include "ns3/isotropic-antenna-model.h"
 #include "ns3/mobility-module.h"
 #include "ns3/network-module.h"
+#include "ns3/nori-slicing-helper.h"
 #include "ns3/nr-module.h"
 #include "ns3/point-to-point-module.h"
-#include "ns3/nori-slicing-helper.h"
-#include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <map>
-
-#include <vector>
+#include <nlohmann/json.hpp>
 #include <numeric>
-#include <cstdint>
-
+#include <vector>
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("nori-embb-urllc-scenario");
 
 // Função auxiliar para imprimir estatísticas periódicas por UE
-void PrintPeriodicStats(Ptr<FlowMonitor> monitor,
-                        FlowMonitorHelper* flowmonHelper,
-                        const std::map<Ipv4Address, uint32_t>& ueIpToIndex,
-                        Ipv4Address ueNetworkAddress,
-                        Ipv4Mask ueNetworkMask,
-                        uint16_t echoPort,
-                        double simTime,
-                        double interval)
+void
+PrintPeriodicStats(Ptr<FlowMonitor> monitor,
+                   FlowMonitorHelper* flowmonHelper,
+                   const std::map<Ipv4Address, uint32_t>& ueIpToIndex,
+                   Ipv4Address ueNetworkAddress,
+                   Ipv4Mask ueNetworkMask,
+                   uint16_t echoPort,
+                   double simTime,
+                   double interval)
 {
     double now = Simulator::Now().GetSeconds();
     if (now > simTime)
@@ -42,12 +41,14 @@ void PrintPeriodicStats(Ptr<FlowMonitor> monitor,
     }
 
     monitor->CheckForLostPackets();
-    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier>(flowmonHelper->GetClassifier());
+    Ptr<Ipv4FlowClassifier> classifier =
+        DynamicCast<Ipv4FlowClassifier>(flowmonHelper->GetClassifier());
     std::map<FlowId, FlowMonitor::FlowStats> statsMap = monitor->GetFlowStats();
 
     if (statsMap.empty())
     {
-        std::cout << "[t=" << now << "s] Nenhum fluxo ainda registrado pelo FlowMonitor." << std::endl;
+        std::cout << "[t=" << now << "s] Nenhum fluxo ainda registrado pelo FlowMonitor."
+                  << std::endl;
     }
 
     // Descobrir quantidade de UEs a partir do mapa IP -> índice
@@ -137,7 +138,7 @@ void PrintPeriodicStats(Ptr<FlowMonitor> monitor,
                     duration = 1e-9;
                 }
                 throughput = (ueRxBytes[i] * 8.0) / duration / 1e6; // Mbps
-                delay = (ueDelaySum[i] / ueRxPackets[i]) * 1e3;      // ms
+                delay = (ueDelaySum[i] / ueRxPackets[i]) * 1e3;     // ms
             }
             lossRatio = (double)(ueTxPackets[i] - ueRxPackets[i]) * 100.0 / ueTxPackets[i];
         }
@@ -161,12 +162,13 @@ void PrintPeriodicStats(Ptr<FlowMonitor> monitor,
     }
 }
 
-int main(int argc, char* argv[])
-{   
-    LogComponentEnable("nori-embb-urllc-scenario", LOG_LEVEL_INFO);
-    LogComponentEnable("E2Interface", LOG_LEVEL_INFO);
-    LogComponentEnable("E2Termination", LOG_LEVEL_INFO);
-    //LogComponentEnable("NrRLMacSchedulerOfdma", LOG_LEVEL_INFO);
+int
+main(int argc, char* argv[])
+{
+    // LogComponentEnable("nori-embb-urllc-scenario", LOG_LEVEL_INFO);
+    // LogComponentEnable("E2Interface", LOG_LEVEL_INFO);
+    // LogComponentEnable("E2Termination", LOG_LEVEL_INFO);
+    // LogComponentEnable("NrRLMacSchedulerOfdma", LOG_LEVEL_INFO);
 
     uint16_t gNbNum = 1;
     uint16_t ueNum = 2;
@@ -179,24 +181,27 @@ int main(int argc, char* argv[])
     double txPower = 0.0;
     double ueTxPower = 0.0;
 
-    std::string ipE2TermRic = "10.244.0.104";
+    std::string ipE2TermRic = "10.244.0.102";
 
     std::vector<int> uesPerSlice;
     std::vector<uint8_t> sstPerSlice;
     std::vector<std::string> trafficTypes;
 
     // Per-traffic-type traffic parameters
-    struct TrafficProfile {
+    struct TrafficProfile
+    {
         double dataRate;
         uint16_t packetSize;
         double onTime;
         double offTime;
     };
+
     std::map<std::string, TrafficProfile> trafficProfiles;
 
     // Caminho correto do arquivo de configuração (ajuste conforme a sua árvore de diretórios)
     std::ifstream configFile("/home/openran-br/ns-3-dev/contrib/nori/examples/config.json");
-    if (configFile.is_open()) {
+    if (configFile.is_open())
+    {
         nlohmann::json configJson;
         configFile >> configJson;
         configFile.close();
@@ -215,78 +220,88 @@ int main(int argc, char* argv[])
 
         std::vector<uint32_t> jsonSlices = configJson["slices"]["UesPerSlice"];
 
-        for (uint32_t& item : jsonSlices) {
+        for (uint32_t& item : jsonSlices)
+        {
             NS_LOG_INFO("Number of UEs per slice: " << item);
             uesPerSlice.push_back(static_cast<int>(item));
         }
 
-        if (configJson["slices"].contains("trafficTypes")) {
+        if (configJson["slices"].contains("trafficTypes"))
+        {
             trafficTypes = configJson["slices"]["trafficTypes"].get<std::vector<std::string>>();
-            for (size_t i = 0; i < trafficTypes.size(); ++i) {
+            for (size_t i = 0; i < trafficTypes.size(); ++i)
+            {
                 NS_LOG_INFO("Slice " << i << " traffic type: " << trafficTypes[i]);
             }
         }
 
-            // Ler parâmetros de tráfego para cada tipo (aceita qualquer chave em "traffic")
-            if (configJson.contains("traffic") && configJson["traffic"].is_object())
+        // Ler parâmetros de tráfego para cada tipo (aceita qualquer chave em "traffic")
+        if (configJson.contains("traffic") && configJson["traffic"].is_object())
+        {
+            for (auto& item : configJson["traffic"].items())
             {
-                for (auto& item : configJson["traffic"].items())
+                const std::string trafficName = item.key();
+                const auto& trafficConfig = item.value();
+
+                if (!trafficConfig.is_object())
                 {
-                    const std::string trafficName = item.key();
-                    const auto& trafficConfig = item.value();
-
-                    if (!trafficConfig.is_object())
-                    {
-                        continue;
-                    }
-
-                    TrafficProfile profile;
-                    profile.dataRate = trafficConfig.value("bitrateMbps", 0.0);
-                    profile.packetSize = trafficConfig.value("packetSize", static_cast<uint16_t>(0));
-                    profile.onTime = trafficConfig.value("onTimeMean", 1.0);
-                    profile.offTime = trafficConfig.value("offTimeMean", 0.01);
-                    trafficProfiles[trafficName] = profile;
-
-                    NS_LOG_INFO("Traffic profile loaded: " << trafficName);
+                    continue;
                 }
-            }
 
-            if (trafficProfiles.empty())
-            {
-                NS_FATAL_ERROR("[nori-embb-urllc-scenario] No traffic profiles found in config.json under 'traffic'");
+                TrafficProfile profile;
+                profile.dataRate = trafficConfig.value("bitrateMbps", 0.0);
+                profile.packetSize = trafficConfig.value("packetSize", static_cast<uint16_t>(0));
+                profile.onTime = trafficConfig.value("onTimeMean", 1.0);
+                profile.offTime = trafficConfig.value("offTimeMean", 0.01);
+                trafficProfiles[trafficName] = profile;
+
+                NS_LOG_INFO("Traffic profile loaded: " << trafficName);
             }
+        }
+
+        if (trafficProfiles.empty())
+        {
+            NS_FATAL_ERROR("[nori-embb-urllc-scenario] No traffic profiles found in config.json "
+                           "under 'traffic'");
+        }
 
         // Expected format in config.json: "SstPerSlice": [1, 2]
-        if (!configJson["slices"].contains("SstPerSlice")) {
-            NS_FATAL_ERROR("[nori-embb-urllc-scenario] Missing required field slices.SstPerSlice in config.json");
+        if (!configJson["slices"].contains("SstPerSlice"))
+        {
+            NS_FATAL_ERROR("[nori-embb-urllc-scenario] Missing required field slices.SstPerSlice "
+                           "in config.json");
         }
 
         std::vector<uint32_t> jsonSst = configJson["slices"]["SstPerSlice"];
 
-        if (jsonSst.size() != uesPerSlice.size()) {
-            NS_FATAL_ERROR("[nori-embb-urllc-scenario] SstPerSlice size (" << jsonSst.size()
-                           << ") does not match UesPerSlice size (" << uesPerSlice.size() << ")");
+        if (jsonSst.size() != uesPerSlice.size())
+        {
+            NS_FATAL_ERROR("[nori-embb-urllc-scenario] SstPerSlice size ("
+                           << jsonSst.size() << ") does not match UesPerSlice size ("
+                           << uesPerSlice.size() << ")");
         }
 
-        for (size_t i = 0; i < jsonSst.size(); ++i) {
+        for (size_t i = 0; i < jsonSst.size(); ++i)
+        {
             uint32_t v = jsonSst[i];
-            if (v > 255) {
-                NS_FATAL_ERROR("[nori-embb-urllc-scenario] Invalid SST value " << v
-                               << " for slice " << i << " (expected 0..255)");
+            if (v > 255)
+            {
+                NS_FATAL_ERROR("[nori-embb-urllc-scenario] Invalid SST value "
+                               << v << " for slice " << i << " (expected 0..255)");
             }
             uint8_t sst = static_cast<uint8_t>(v);
             sstPerSlice.push_back(sst);
-            NS_LOG_INFO("[nori-embb-urllc-scenario] Slice " << i
-                         << " configured SST from JSON: " << static_cast<uint32_t>(sst));
+            NS_LOG_INFO("[nori-embb-urllc-scenario] Slice "
+                        << i << " configured SST from JSON: " << static_cast<uint32_t>(sst));
         }
 
         ueNum = std::accumulate(uesPerSlice.begin(), uesPerSlice.end(), 0);
         NS_LOG_INFO("Total number of UEs (from slice configuration): " << ueNum);
-
-    }else {
+    }
+    else
+    {
         NS_LOG_ERROR("Could not open configuration file.");
     }
-
 
     // Map each UE to its slice and traffic type (for post-processing)
     std::vector<int> ueSliceId(ueNum, -1);
@@ -297,11 +312,24 @@ int main(int argc, char* argv[])
     // Enable/disable RAN slicing with RL scheduler
     bool enableRanSlicing = true;
     bool enablenori = true;
-    
+    uint32_t runIndex = 2;
+    int64_t channelStream = -1;
+
     CommandLine cmd;
     cmd.AddValue("enableRanSlicing", "Enable RAN Slicing with RL scheduler", enableRanSlicing);
     cmd.AddValue("ipE2TermRic", "Ip address of the E2 termination", ipE2TermRic);
+    cmd.AddValue("runIndex", "Índice de execução/episódio (muda todas as variáveis)", runIndex);
+    // cmd.AddValue("channelStream",
+    //              "Stream específico só para o canal (-1 para global)",
+    //              channelStream);
     cmd.Parse(argc, argv);
+
+    // Muda a semente de todas as variáveis do episódio
+    RngSeedManager::SetRun(runIndex);
+
+    std::cout << "\n>>> [RNG ATIVO] Semente Base: " << RngSeedManager::GetSeed()
+              << " | Run/Episódio: " << RngSeedManager::GetRun() << " <<<\n"
+              << std::endl;
 
     Ptr<NrHelper> nrHelper = CreateObject<NrHelper>();
 
@@ -311,14 +339,15 @@ int main(int argc, char* argv[])
     nrHelper->SetGnbPhyAttribute("Numerology", UintegerValue(numerology));
     nrHelper->SetGnbPhyAttribute("TxPower", DoubleValue(txPower));
     nrHelper->SetUePhyAttribute("TxPower", DoubleValue(ueTxPower));
-    //nrHelper->SetGnbPhyAttribute("DciProcessingDelay", TimeValue(MicroSeconds(1.0)));
-    //nrHelper->SetUePhyAttribute("DciProcessingDelay", TimeValue(MicroSeconds(1.0)));
-    
+    // nrHelper->SetGnbPhyAttribute("DciProcessingDelay", TimeValue(MicroSeconds(1.0)));
+    // nrHelper->SetUePhyAttribute("DciProcessingDelay", TimeValue(MicroSeconds(1.0)));
+
     // Configurar scheduler: RL com slicing ou RoundRobin padrão
-    std::string schedulerType = enableRanSlicing ? "ns3::NrRLMacSchedulerOfdma" : "ns3::NrMacSchedulerOfdmaRR";
+    std::string schedulerType =
+        enableRanSlicing ? "ns3::NrRLMacSchedulerOfdma" : "ns3::NrMacSchedulerOfdmaRR";
     nrHelper->SetSchedulerTypeId(TypeId::LookupByName(schedulerType));
     NS_LOG_INFO("Scheduler selecionado: " << schedulerType);
-    
+
     // EPC helper
     Ptr<NrPointToPointEpcHelper> epcHelper = CreateObject<NrPointToPointEpcHelper>();
     nrHelper->SetEpcHelper(epcHelper);
@@ -354,14 +383,16 @@ int main(int argc, char* argv[])
         if (mob)
         {
             Vector pos = mob->GetPosition();
-            NS_LOG_INFO("gNB[" << i << "] pos = (" << pos.x << ", " << pos.y << ", " << pos.z << ")");
+            NS_LOG_INFO("gNB[" << i << "] pos = (" << pos.x << ", " << pos.y << ", " << pos.z
+                               << ")");
         }
     }
 
     MobilityHelper ueMobility;
-    Ptr<RandomRectanglePositionAllocator> positionAlloc = CreateObject<RandomRectanglePositionAllocator>();
-    positionAlloc->SetAttribute("X", StringValue("ns3::UniformRandomVariable[Min=-20|Max=20]"));
-    positionAlloc->SetAttribute("Y", StringValue("ns3::UniformRandomVariable[Min=-20|Max=20]"));
+    Ptr<RandomRectanglePositionAllocator> positionAlloc =
+        CreateObject<RandomRectanglePositionAllocator>();
+    positionAlloc->SetAttribute("X", StringValue("ns3::UniformRandomVariable[Min=-200|Max=200]"));
+    positionAlloc->SetAttribute("Y", StringValue("ns3::UniformRandomVariable[Min=-200|Max=200]"));
     ueMobility.SetPositionAllocator(positionAlloc);
     ueMobility.SetMobilityModel("ns3::RandomWaypointMobilityModel",
                                 "Speed",
@@ -374,24 +405,31 @@ int main(int argc, char* argv[])
 
     // Log initial UE positions
     NS_LOG_INFO("*** UE initial positions ***");
+    std::cout << "\n=== [DEBUG] Posições Iniciais dos UEs ===" << std::endl;
     for (uint32_t i = 0; i < ueNodes.GetN(); ++i)
     {
         Ptr<MobilityModel> mob = ueNodes.Get(i)->GetObject<MobilityModel>();
         if (mob)
         {
             Vector pos = mob->GetPosition();
-            NS_LOG_INFO("UE[" << i << "] pos = (" << pos.x << ", " << pos.y << ", " << pos.z << ")");
+            NS_LOG_INFO("UE[" << i << "] pos = (" << pos.x << ", " << pos.y << ", " << pos.z
+                              << ")");
+            std::cout << "  UE[" << i << "] pos = (" << pos.x << ", " << pos.y << ", " << pos.z
+                      << ")" << std::endl;
         }
     }
+    std::cout << "==========================================\n" << std::endl;
 
     // Antennas and channel
     nrHelper->SetUeAntennaAttribute("NumRows", UintegerValue(1));
     nrHelper->SetUeAntennaAttribute("NumColumns", UintegerValue(1));
-    nrHelper->SetUeAntennaAttribute("AntennaElement", PointerValue(CreateObject<IsotropicAntennaModel>()));
+    nrHelper->SetUeAntennaAttribute("AntennaElement",
+                                    PointerValue(CreateObject<IsotropicAntennaModel>()));
 
     nrHelper->SetGnbAntennaAttribute("NumRows", UintegerValue(1));
     nrHelper->SetGnbAntennaAttribute("NumColumns", UintegerValue(1));
-    nrHelper->SetGnbAntennaAttribute("AntennaElement", PointerValue(CreateObject<IsotropicAntennaModel>()));
+    nrHelper->SetGnbAntennaAttribute("AntennaElement",
+                                     PointerValue(CreateObject<IsotropicAntennaModel>()));
 
     BandwidthPartInfoPtrVector allBwps;
     CcBwpCreator ccBwpCreator;
@@ -402,8 +440,9 @@ int main(int argc, char* argv[])
     band = ccBwpCreator.CreateOperationBandContiguousCc(bandConf);
     Ptr<NrChannelHelper> channelHelper = CreateObject<NrChannelHelper>();
     channelHelper->ConfigureFactories("UMa", "Default", "ThreeGpp");
-    channelHelper->SetPathlossAttribute("ShadowingEnabled", BooleanValue(false));
+    channelHelper->SetPathlossAttribute("ShadowingEnabled", BooleanValue(true));
     channelHelper->SetChannelConditionModelAttribute("UpdatePeriod", TimeValue(MilliSeconds(10)));
+    //Config::SetDefault("ns3::ThreeGppChannelModel::UpdatePeriod", TimeValue(MilliSeconds(10)));
     channelHelper->AssignChannelsToBands({band});
     allBwps = CcBwpCreator::GetAllBwps({band});
 
@@ -414,6 +453,13 @@ int main(int argc, char* argv[])
 
     NetDeviceContainer gNbDevs = nrHelper->InstallGnbDevice(gNbNodes, allBwps);
     NetDeviceContainer ueDevs = nrHelper->InstallUeDevice(ueNodes, allBwps);
+    // Se você quiser controlar manualmente só o canal/NR de forma isolada:
+    // if (channelStream > 0)
+    //{
+    //    int64_t s = channelStream;
+    //    s += nrHelper->AssignStreams(gNbDevs, s);
+    //    s += nrHelper->AssignStreams(ueDevs, s);
+    //}
 
     // Enable E2 support on gNBs
     auto e2 = CreateObject<E2TermHelper>();
@@ -434,7 +480,8 @@ int main(int argc, char* argv[])
     PointToPointHelper p2ph;
     p2ph.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
     p2ph.SetChannelAttribute("Delay", StringValue("1ms"));
-    NetDeviceContainer internetDevices = p2ph.Install(epcHelper->GetPgwNode(), remoteHostContainer.Get(0));
+    NetDeviceContainer internetDevices =
+        p2ph.Install(epcHelper->GetPgwNode(), remoteHostContainer.Get(0));
 
     // Endereçamento do link PGW <-> remoteHost
     Ipv4AddressHelper ipv4h;
@@ -445,7 +492,8 @@ int main(int argc, char* argv[])
 
     // epcHelper assigns IPv4 addresses to UEs
     Ipv4InterfaceContainer ueIpIfaces = epcHelper->AssignUeIpv4Address(ueDevs);
-    // Em muitas versões: Ipv4InterfaceContainer ueIpIfaces = epcHelper->AssignUeIpv4Address(ueDevs);
+    // Em muitas versões: Ipv4InterfaceContainer ueIpIfaces =
+    // epcHelper->AssignUeIpv4Address(ueDevs);
 
     // Map IP -> UE index for FlowMonitor classification
     std::map<Ipv4Address, uint32_t> ueIpToIndex;
@@ -468,7 +516,10 @@ int main(int argc, char* argv[])
     Ipv4StaticRoutingHelper ipv4RoutingHelper;
     Ptr<Ipv4> remoteIpv4 = remoteHostContainer.Get(0)->GetObject<Ipv4>();
     Ptr<Ipv4StaticRouting> remoteStatic = ipv4RoutingHelper.GetStaticRouting(remoteIpv4);
-    remoteStatic->AddNetworkRouteTo(Ipv4Address("7.0.0.0"), Ipv4Mask("255.0.0.0"), Ipv4Address("1.0.0.1"), 1);
+    remoteStatic->AddNetworkRouteTo(Ipv4Address("7.0.0.0"),
+                                    Ipv4Mask("255.0.0.0"),
+                                    Ipv4Address("1.0.0.1"),
+                                    1);
 
     // Default route on UEs towards EPC gateway
     for (uint32_t i = 0; i < ueNodes.GetN(); ++i)
@@ -477,7 +528,7 @@ int main(int argc, char* argv[])
         Ptr<Ipv4StaticRouting> ueStatic = ipv4RoutingHelper.GetStaticRouting(ueIpv4);
         ueStatic->SetDefaultRoute(epcHelper->GetUeDefaultGatewayAddress(), 1);
         NS_LOG_INFO("UE[" << i << "] default route: GW=" << epcHelper->GetUeDefaultGatewayAddress()
-                         << " via interface 1");
+                          << " via interface 1");
     }
 
     // Applications: UDP sinks on UEs and OnOff sources on remoteHost (downlink)
@@ -509,7 +560,8 @@ int main(int argc, char* argv[])
     for (uint32_t i = 0; i < ueNum; ++i)
     {
         uint16_t port = portBase + i;
-        PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), port));
+        PacketSinkHelper sink("ns3::UdpSocketFactory",
+                              InetSocketAddress(Ipv4Address::GetAny(), port));
         ApplicationContainer sinkApps = sink.Install(ueNodes.Get(i));
         sinkApps.Start(Seconds(0.0));
         sinkApps.Stop(Seconds(simTime));
@@ -577,21 +629,21 @@ int main(int argc, char* argv[])
         }
     }
 
-     // Simple UDP echo connectivity test
-     NS_LOG_INFO("Installing UDP Echo test...");
-     uint16_t echoPort = 9;
-     UdpEchoServerHelper echoServer(echoPort);
-     ApplicationContainer serverApps = echoServer.Install(remoteHostContainer.Get(0));
-     serverApps.Start(Seconds(0.0));
-     serverApps.Stop(Seconds(simTime));
+    // Simple UDP echo connectivity test
+    NS_LOG_INFO("Installing UDP Echo test...");
+    uint16_t echoPort = 9;
+    UdpEchoServerHelper echoServer(echoPort);
+    ApplicationContainer serverApps = echoServer.Install(remoteHostContainer.Get(0));
+    serverApps.Start(Seconds(0.0));
+    serverApps.Stop(Seconds(simTime));
 
-     UdpEchoClientHelper echoClient(remoteHostAddr, echoPort);
-     echoClient.SetAttribute("MaxPackets", UintegerValue(1));
-     echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
-     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
-     ApplicationContainer clientApps = echoClient.Install(ueNodes.Get(0));
-     clientApps.Start(Seconds(0.5));
-     clientApps.Stop(Seconds(simTime));
+    UdpEchoClientHelper echoClient(remoteHostAddr, echoPort);
+    echoClient.SetAttribute("MaxPackets", UintegerValue(1));
+    echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
+    echoClient.SetAttribute("PacketSize", UintegerValue(1024));
+    ApplicationContainer clientApps = echoClient.Install(ueNodes.Get(0));
+    clientApps.Start(Seconds(0.5));
+    clientApps.Stop(Seconds(simTime));
 
     // FlowMonitor statistics
     FlowMonitorHelper flowmonHelper;
